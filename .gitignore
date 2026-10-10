@@ -1,0 +1,24 @@
+# ===== 大文件 / 可重建产物（不入库）=====
+# WRF/WPS 源码树与 tar 包（约 800MB；官方可下载，重建方法见 WRF编译手册）
+source/
+# 扫描书提取图（566 页约 165MB；用 workspace/scripts/extract_pdf_pages.py 从原 PDF 重建）
+AtmosphericPhysics/book/
+# pptx 解包产物（用 workspace/scripts/unpack_pptx.py 重建）
+AtmosphericPhysics/ppt/*_unpack/
+# 截图缓存
+.screenshots/
+
+# ===== Python =====
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# ===== workspace 临时区（保留 context/outline/scripts 三类状态文件入库）=====
+workspace/*
+!workspace/context/
+!workspace/outline/
+!workspace/scripts/
+
+# ===== 系统杂项 =====
+Thumbs.db
+.DS_Store
