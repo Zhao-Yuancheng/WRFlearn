@@ -586,3 +586,25 @@
 ### 章节交付
 - `doc\ch20_modifying_wrf.md`：正文 + 事故链七条表 + §20.7.1 全书改造案例总索引（27 案）；9 处待填全部回填；图 3 张（ch20_L1_diag/L2_pblh/L3_albedo）；`_fix_quotes.py` 两轮
 - 全书补充（同日）：ch01/ch02 新交付；ch03–ch19 补三类专栏（依赖树 10 棵 + 案例库）；ch20 §20.7.1 总索引
+
+## ch21 + 附录 + index 段（2026-10-11 晚，批次 4 收官）
+### solve_em.F 结构侦察（全实测，WRF 4.8.0 本地源码）
+- 文件规模：`dyn_em/solve_em.F` 5197 行（内含 CMAQ_DRIVER 局部子程序）；part1 2027 行 / part2 1132 行 / small_step 1961 行 / big_step 6758 行 / advect 13046 行 / diffusion 8482 行 / bc_em 1747 行 / em 3165 行 / module_em 之外 ieva 9 子程序（WW_SPLIT/TRIDIAG/advect_*_implicit 等）；solve_em 全 CALL 图 426 条抽取至 `workspace/tmp/ch21_solve_em_F_calls.txt`
+- 时间分裂实测：rk_ord 默认 3（Registry rconfig）；time_step_sound 默认 0 → 自动式 `max(2*(int(300*dt/dx-0.01)+1),4)`；rk3 三 stage 步长表（dt/3·1 小步；dt/2·n/2；dt·n）来自 solve_em 装配分支原文；rk_ord==1 分支 fatal "leapfrog removed"
+- **物理调用时刻（验收答案）**：`first_rk_step_part1/2` 只在 rk_step==1 执行；part1 内序 = init_zero_tendency→phy_prep→pre_radiation→radiation→surface→pbl→[fire]→cumulus→convtrans_prep→shallowcu→[scm]→fddagd（call map 逐条实测）；part2 内序 = RAND_PERT_UPDATE→calculate_phy_tend→compute_diff_metrics→cal_deform_and_div→cal_helicity→nonlocal_flux/free_atmos_length/meso_length_scale→calculate_km_kh→phy_bc→sfs_driver→update_phy_ten→update_stoch_ten→damptop→tke_rhs→fddaobs→conv_t_tendf_to_moist→vertical_diffusion_implicit/2→horizontal_diffusion_2
+- **微物理时刻**：`moist_physics_prep_em→(bulk_dust)→microphysics_driver→moist_physics_finish_em` 在 **Runge_Kutta_loop 结束之后**（L3615 END DO 之后、set_w_surface/after_all_rk_steps 之前）——每时间步一次；修正"微物理在 RK 循环内"的直觉
+- rk_tendency（module_em.F）内部 14 步装配序实测：WW_SPLIT→calculate_full/calc_mut_new/calc_mu_uv_1→advect u/v/w/t（weno/显式/implicit 三分支）→set_tend(RTHFTEN)→rhs_ph→horizontal_pressure_gradient→pg_buoy_w→w_damp→perturbation_coriolis/coriolis/curvature→held_suarez_damp→horizontal_diffusion×4→vertical_diffusion×4→sixth_order_diffusion×4→rk_rayleigh_damp→theta_relaxation
+- 小步长注释锚点：advance_uv 注释 "x/y pressure gradient: ADT eqn 44/45"；advance_mu_t 注释 "ADT eqn 47" + "mu is not coupled... ww IS coupled"；calc_coef_w 垂直隐式系数 a/alpha/gamma；positive_definite_slab 逐行读（行内守恒重分配）
+- 21.6 实验交叉验证：`workspace/scripts/ch21_timestep_audit.py` 重演公式，d01 8000 步 / d02 24000 步与 439419 实测逐位吻合；每步 1+2+4=7 个声波小步；日志 `workspace/logs/ch21_timestep_audit.log`
+### 案例库文献核验（ch21 案 28–35）
+- SKEBS：`module_stoch.F` 头注原文 = 作者 Judith Berner (NCAR, Apr 2014) + 文献 Berner, Ha, Hacker, Fournier, Snyder 2011, MWR 139, 1972–1995【核验：源码头注】
+- WRF-CMAQ：solve_em 末段 aqprep/CMAQ_DRIVER/FEEDBACK_READ + 编译宏 WRF_CMAQ；文献 Wong, Pleim, Mathur et al. 2012 GMD 5【核验：条目经检索证实；页码未核，已在 app_d 标注】
+- WENO：`advect_scalar_weno` 头注原文 "5th-order WENO adapted from COMMAS. See Jiang and Shu 1996 JCP 126:202-223; Shu 2003; Bryan 2005 MWR"【核验：源码头注】
+- MAD-WRF：`phys/module_madwrf.F` 头注 = 作者 Pedro A. Jimenez；Registry 包 madwrf_mp(mp_physics==96)/madwrf(madwrf_opt==2→tr_qc/qi/qs)/cldinit；solve_em 挂点 cloud_tracer_nudge【核验：源码+Registry；论文条目未核已标注】
+- use_theta_m：Registry rconfig 默认 **1**（"theta_m = theta (1 + 1.61 Qv)"）；big_step 9 处分支 + module_bc_em theta_and_thetam_lbc_only【核验】
+- Registry 其余核验：damp_opt 默认 3、w_damping 0、epssm 0.1、spec_bdy_width 5/spec_zone 1/relax_zone 4、use_adaptive_time_step .false.；WW_SPLIT 位于 module_ieva_em.F
+### 附录与 index
+- app_a：`module_model_constants.F` 全常数逐行重读（g=9.81/r_d=287./cp=7r_d/2=1004.5/SVP1=0.6112 kPa/STBOLT=5.67051e-8/KARMAN=0.4/EOMEG=7.2921e-5/OBLIQUITY=23.5/ECCENTRICITY=0.014 等），对照 ch11 §11.4.1 底稿与书附录 C 偏差表
+- app_b：ch10–ch17+ch21 术语表汇编 + 工程术语补充（九类）；app_c：全书速查表汇编制（c.0 万能诊断五步 + c.1–c.8 + 改造检查单）；app_d：文献三级标记（核验/通行/线索）+ 数据源致谢（liuyl17 ERA5、WPS_GEOG）
+- index.md：全书 21 章+4 附录目录（文件名经 Glob 核对）、使用说明、页码换算规则、阅读路径、修订记录
+- `_fix_quotes.py` 六文件全跑（ch21 转 118 处；附录 a–d/index 共 46 处；残余均在代码块内，ch21_check_quotes.py 验证六文件围栏外为 0）

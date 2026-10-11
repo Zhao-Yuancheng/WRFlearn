@@ -425,6 +425,19 @@
   - 四件套全同步：verify_log（ch20 段四节）、chapter_map（ch20 条目）、progress（头部改写 + 集群状态 + 第 15 条复核七项 + ch20 交付记录）、notes（本段）；material 末段收官
   - **下一任务：ch21 solve_em.F 全流程 → 附录 a–d → index.md**；持续不标 goal complete
 
+## 批次 4 收官：ch21 + 附录 a–d + index.md（2026-10-11 晚，自主继续）
+- **ch21 交付** `doc\ch21_solve_em_dynamics.md`（十四站走读 + RK3/小步长机制 + 案例库案 28–35 + 依赖树 + 时间步进账本实验）：
+  - 侦察方法：ch21_recon.py 抽 426 条 CALL 图 + 逐段 Read（配置段/RK 装配/part1/part2/rk_tendency 14 步序/small_steps/微物理段/收尾段）+ Registry rconfig 重读（rk_ord=3/time_step_sound=0 自动式/damp_opt=3/w_damping=0/epssm=0.1/spec_bdy_width 5/1/4）
+  - **关键修正一处**：微物理（moist_physics_prep_em→microphysics_driver→moist_physics_finish）在 Runge_Kutta_loop **结束之后**执行（每时间步一次），不在 RK 循环内——与 ch13 的调用链记录并行不悖，但纠正了"循环内"的直觉
+  - **验收答案钉死**：非时间分裂物理只在 rk_step==1 调用（part1 序 = radiation→surface→pbl→[fire]→cumulus→convtrans_prep→shallowcu→fddagd；part2 序 = calculate_phy_tend→…→vertical_diffusion_implicit/2→horizontal_diffusion_2）
+  - 案例库 8 案全部源码/Registry/头注实测：SKEBS（Berner 2011 MWR 头注）、WRF-CMAQ（Wong 2012 GMD，检索证实）、WRF-Fire、MAD-WRF（Jimenez；mp_physics=96 包）、use_theta_m（4.8.0 默认 1）、WENO（COMMAS/Jiang&Shu 头注）、Polar（module_polarfft）、IEVA（module_ieva_em）
+  - 实验：ch21_timestep_audit.py 重演时间步进账本——d01 8000 步/d02 24000 步与 439419 逐位吻合、每步 1+2+4=7 小步；日志 ch21_timestep_audit.log
+- **附录 a–d 交付**：app_a（三列对照 + module_model_constants 全常数偏差表，g=9.81 vs 书 9.80665 等口径记录）；app_b（九类术语汇编，ch10–17/ch21 术语表 + 工程术语）；app_c（c.0 万能诊断五步 + 七段速查 + 兼容守门员六条；底稿=ch21_extract_appendix_src.py 抽取的 app_extract_*.md）；app_d（文献三级标记：核验/通行/线索 + 数据源致谢 liuyl17/WPS_GEOG）
+- **index.md 交付**：21 章+4 附录总目录（文件名 Glob 核对无误）、使用说明、三类专栏体例指引、页码换算规则、四条阅读路径、修订记录
+- 工具新增：ch21_recon.py / ch21_timestep_audit.py / ch21_extract_appendix_src.py / ch21_check_quotes.py；_fix_quotes.py 六文件全过（ch21 转 118 处、附录 46 处；围栏外英文引号 0）
+- 四件套同步：verify_log（ch21+附录段）、chapter_map（ch21 与附录条目）、progress（头部改写 + 批次 4 交付记录 + 复核清单第 16 条）、本段
+- **全书结构至此完整**：第 I–V 部 21 章 + 附录 4 件 + index.md；下一批次=批次 5 全书校阅（交叉引用/符号统一/死链/考点覆盖总复核）；持续不标 goal complete
+
 ## 用户问询：案例库"情况①"是否=已上游化（2026-10-11 下午）
 - **用户问题**：ch15 案例一（MSKF CMT）是否官方已接纳、进 source/？——**是**。实证：① `phys/module_cu_mskf.F` 行 5 `!JTR = Jacob Radford, NCSU`、行 18 特性清单"（7）CMT: Zhang&McFarlane JGR 1995"、行 3630-3635 `cmt_opt_flag=.TRUE.`（硬编码默认开，非 namelist）；② WRF 4.2 release notes（2020-04-23）原句收录；③ Registry line 68 有 `# CDXWRF modification` 标记（CORDEX 亦已上游化）。
 - **修订三处**：ch15 案例一改"情况①·已上游化"+ 源码证据 + release notes 原句 + 教学点补"改造生命周期"；案例二（NTiedtke scale_fac）、案例三（bmj_rad_feedback/GFL）同标注已上游化；ch01 §1.6.2 情况①再分两小类（已上游化/外部补丁）+ 判别三标志（署名注释/Registry 改造标记/release notes）。

@@ -1,6 +1,6 @@
 # 第 21 章　solve_em.F 全流程：动力内核的每一次心跳
 
-> **第 V 部　动力内核入门**。前二十章里，我们站在驱动层、物理层与实验层看过 WRF 的全部"上层建筑"；本章沉到最底层，逐段走完 `dyn_em/solve_em.F`——ARW 内核真正"推时间"的那段代码。全部结论在 WRF 4.8.0 本地源码上逐段核验（写作当次会话 Read 原文）；源码引用一律"文件 + 子程序名"。
+> **第 V 部　动力内核入门**。前二十章里，我们站在驱动层、物理层与实验层看过 WRF 的全部“上层建筑”；本章沉到最底层，逐段走完 `dyn_em/solve_em.F`——ARW 内核真正“推时间”的那段代码。全部结论在 WRF 4.8.0 本地源码上逐段核验（写作当次会话 Read 原文）；源码引用一律“文件 + 子程序名”。
 
 ---
 
@@ -8,13 +8,13 @@
 
 ### 21.0.1　定位与阅读方式
 
-第 III 部讲物理参数化时，每一章都从某个物理驱动（如 `phys/module_radiation_driver.F`）向上追溯到它在 `first_rk_step_part1` 里的调用点；第 IV 部做改造时，我们在 tile 循环里加过诊断变量（ch20 第一级）。但"调用点之上是什么""一个时间步在物理之间怎样被切分"，这些问题的答案一直悬在 `dyn_em/solve_em.F` 里。本章回答三个问题：
+第 III 部讲物理参数化时，每一章都从某个物理驱动（如 `phys/module_radiation_driver.F`）向上追溯到它在 `first_rk_step_part1` 里的调用点；第 IV 部做改造时，我们在 tile 循环里加过诊断变量（ch20 第一级）。但“调用点之上是什么”“一个时间步在物理之间怎样被切分”，这些问题的答案一直悬在 `dyn_em/solve_em.F` 里。本章回答三个问题：
 
-1. **一个时间步内代码的执行顺序是什么**（21.2 的"十四站"走读）；
+1. **一个时间步内代码的执行顺序是什么**（21.2 的“十四站”走读）；
 2. **物理过程在 Runge–Kutta 循环中何时、以什么频率被调用**（验收要求：精确到子程序，答案在 21.2.7–21.2.8 与 21.2.14）；
 3. **方程组与语句的对应关系**：ARW 的动量、连续、热力学、w 方程分别落在哪些子程序的哪些计算块上（21.3）。
 
-**关于书第 7 章的使用方式**：按全书约定，本章"按需引用"《大气物理学》第 7 章的动力学概念（动量方程、科氏力、地转平衡），不做整章推导。一个诚实的说明：书第 7 章以概念与图像为主，ARW 内核真正实现的方程是**通量形式的半隐式非静力方程组**，其权威描述是技术注记《A Description of the Advanced Research WRF Model》（Skamarock 等，NCAR/TN-475+STR，下文称 **ADT**）。因此本章的"公式↔语句"对照以 **ADT 式号 ↔ 源码注释** 为准绳（源码注释中大量出现"ADT eqn 44/45/47"字样，可直接对上），书第 7 章只承担"为什么要有这些项"的物理直觉。
+**关于书第 7 章的使用方式**：按全书约定，本章“按需引用”《大气物理学》第 7 章的动力学概念（动量方程、科氏力、地转平衡），不做整章推导。一个诚实的说明：书第 7 章以概念与图像为主，ARW 内核真正实现的方程是**通量形式的半隐式非静力方程组**，其权威描述是技术注记《A Description of the Advanced Research WRF Model》（Skamarock 等，NCAR/TN-475+STR，下文称 **ADT**）。因此本章的“公式↔语句”对照以 **ADT 式号 ↔ 源码注释** 为准绳（源码注释中大量出现“ADT eqn 44/45/47”字样，可直接对上），书第 7 章只承担“为什么要有这些项”的物理直觉。
 
 ### 21.0.2　源码锚点总表
 
@@ -60,16 +60,16 @@ flowchart TD
 ARW 求解的是**非静力、可压缩、完全弹性的欧拉方程组**，写在地形追随的**静力气压坐标** η 上（ch10 §10.1 已引入 η 与混合坐标 c1–c4）。与教科书最不同的两点：
 
 1. **垂直动量方程不解静力平衡**：w 与位势 φ 由完整的垂直动量方程预报，静力平衡只作为**参考态**（`mub`、`pb`、`t_init`，由 real.exe 构造，见 ch07）进入扰动量分解；
-2. **水平动量写在耦合（coupled）形式**：方程组以 μ（干空气质量柱）为"质量权重"，预报变量是 `ru = μ·u` 这类通量形式变量——这就是为什么 `solve_em` 里到处是 `couple`/`decouple` 调用。
+2. **水平动量写在耦合（coupled）形式**：方程组以 μ（干空气质量柱）为“质量权重”，预报变量是 `ru = μ·u` 这类通量形式变量——这就是为什么 `solve_em` 里到处是 `couple`/`decouple` 调用。
 
-ADT 给出的通量形式方程组（联立垂直动量、w 连续性、静力气压倾向、位势、水平动量、扰动位温、水物质）在源码里的"户口"如下，这张表是本章 21.3 的索引：
+ADT 给出的通量形式方程组（联立垂直动量、w 连续性、静力气压倾向、位势、水平动量、扰动位温、水物质）在源码里的“户口”如下，这张表是本章 21.3 的索引：
 
 | ADT 式（内容） | 源码落点（文件 + 子程序） |
 |---|---|
-| 水平动量 x 方向（式 44 的气压梯度项） | `module_small_step_em.F: advance_uv`（注释 "x pressure gradient: ADT eqn 44"） |
-| 水平动量 y 方向（式 45 的气压梯度项） | `module_small_step_em.F: advance_uv`（注释 "y pressure gradient: ADT eqn 45"） |
+| 水平动量 x 方向（式 44 的气压梯度项） | `module_small_step_em.F: advance_uv`（注释 “x pressure gradient: ADT eqn 44”） |
+| 水平动量 y 方向（式 45 的气压梯度项） | `module_small_step_em.F: advance_uv`（注释 “y pressure gradient: ADT eqn 45”） |
 | 水平动量的平流/科氏/曲率（RK 步） | `module_em.F: rk_tendency` → `module_big_step_utilities_em.F: coriolis`、`curvature` |
-| 连续方程/质量守恒（式 47） | `module_small_step_em.F: advance_mu_t`（注释 "ADT eqn 47"） |
+| 连续方程/质量守恒（式 47） | `module_small_step_em.F: advance_mu_t`（注释 “ADT eqn 47”） |
 | 扰动位温方程 | `module_small_step_em.F: advance_mu_t` |
 | 垂直动量 + 位势（隐式声波） | `module_small_step_em.F: advance_w` + `calc_coef_w` |
 | φ 诊断（位势倾向） | `module_big_step_utilities_em.F: rhs_ph`、`diagnose_w` |
@@ -94,9 +94,9 @@ RK3 三个 stage 的步长装配在 `solve_em` 循环开头（`rk_ord` 分支）
 
 $$n_s=\max\Big(2\big(\lfloor 300\,\Delta t/\Delta x-0.01\rfloor+1\big),\;4\Big)$$
 
-（注释自述："This function will give 4 for 6·dx and 6 for 10·dx and returns even numbers only"——即把水平平流 CFL 控制在 ~0.33/小步）。若用户手动设了 `time_step_sound` 则直接采用。`dts = dt/float(num_sound_steps)`。
+（注释自述：“This function will give 4 for 6·dx and 6 for 10·dx and returns even numbers only”——即把水平平流 CFL 控制在 ~0.33/小步）。若用户手动设了 `time_step_sound` 则直接采用。`dts = dt/float(num_sound_steps)`。
 
-为什么这样分？物理图像：平流与适应过程的时间尺度是分钟级，声波是秒级；把慢项交给大步长高阶 RK，快项交给小步长低阶格式，比整体用小步长省一个量级的计算量。这就是"时间分裂"（time splitting）。RK3 本身的选择依据见 Wicker & Skamarock（2002）：三阶 RK 允许更大的稳定时间步且对平流相位误差更友好。
+为什么这样分？物理图像：平流与适应过程的时间尺度是分钟级，声波是秒级；把慢项交给大步长高阶 RK，快项交给小步长低阶格式，比整体用小步长省一个量级的计算量。这就是“时间分裂”（time splitting）。RK3 本身的选择依据见 Wicker & Skamarock（2002）：三阶 RK 允许更大的稳定时间步且对平流相位误差更友好。
 
 ```mermaid
 sequenceDiagram
@@ -112,12 +112,12 @@ sequenceDiagram
 
 读懂 `solve_em` 实参表的前提是认清变量命名体系（全部由 Registry 生成，见 ch04）：
 
-- **时间层**：`u_1/u_2`、`t_1/t_2`、`mu_1/mu_2` 等。约定（源码注释原文）："Time level t is in the `*_2` variable in the first part of the step, and in the `*_1` variable after the predictor"——即 RK 循环内两套数组来回搬运，`*_save`（`u_save/t_save/ph_save/mu_save`）保存步初值供小步长阶段与 RK 校正使用；
+- **时间层**：`u_1/u_2`、`t_1/t_2`、`mu_1/mu_2` 等。约定（源码注释原文）：“Time level t is in the `*_2` variable in the first part of the step, and in the `*_1` variable after the predictor”——即 RK 循环内两套数组来回搬运，`*_save`（`u_save/t_save/ph_save/mu_save`）保存步初值供小步长阶段与 RK 校正使用；
 - **通量形式**：`ru/rv/rw` 是 μ 耦合后的水平/垂直动量通量，`ww` 是 μ 耦合后的 η 面垂直质量通量（≠ 垂直速度 w！）；
 - **基态/扰动分解**：`mu = mub + mu_1`、`p = pb + p`、`al = alb + al`（`al` 为 1/ρ 扰动）；`alt = alb + al` 全量；
 - **混合坐标系数**：`c1h/c2h/c1f/c2f`（半层/整层）与 `c3h/c4h/c3f/c4f`（hybrid_opt=2 的 Klemp 混合坐标权重，ch10 §10.12）；
 - **地图因子**：`msftx/msfty`（质量点）与 `msfux/msfuy/msfvx/msfvy`（速度点）；Lambert 投影下 $m=\mathrm{sec}^2\varphi$ 型缩放（书第 7 章的地图投影尺度因子概念）。耦合变量的定义：`couple` 把物理量乘以 μ 与地图因子（如 `t` → `μ·m·θ`），`decouple` 反向；`module_big_step_utilities_em.F: couple/decouple/couple_momentum` 是两座桥；
-- **use_theta_m**：4.8.0 中 `&dynamics` 的 `use_theta_m` **默认 1**（Registry 记录原文 "theta_m = theta (1 + 1.61 Qv); 0-no, 1=yes"）——即默认以**湿位温**为预报变量，水汽贡献直接进热力学变量；`module_big_step_utilities_em.F` 的 `rk_step_prep`/`phy_prep`/`moist_physics_prep_em` 内多处 `use_theta_m` 分支与 `module_bc_em.F: theta_and_thetam_lbc_only` 都为此服务（案例 32）。
+- **use_theta_m**：4.8.0 中 `&dynamics` 的 `use_theta_m` **默认 1**（Registry 记录原文 “theta_m = theta (1 + 1.61 Qv); 0-no, 1=yes”）——即默认以**湿位温**为预报变量，水汽贡献直接进热力学变量；`module_big_step_utilities_em.F` 的 `rk_step_prep`/`phy_prep`/`moist_physics_prep_em` 内多处 `use_theta_m` 分支与 `module_bc_em.F: theta_and_thetam_lbc_only` 都为此服务（案例 32）。
 
 ### 21.1.4　一次心跳的总时序
 
@@ -166,7 +166,7 @@ SUBROUTINE solve_em ( grid , config_flags  &
 
 - **实参由 Registry 生成**：`dummy_new_args.inc`/`dummy_new_decl.inc` 是 ch03 §3.2.5 讲过的 `share/solve_interface.F` 实参展开机制的下游——你在 Registry 里加一个状态变量，这两个文件与 `solve_em` 的实参表会同步长出新名字（ch20 第一级加 `T2_PEAK` 时亲眼所见）。
 - **唯一逻辑实参**只有 `grid`（TYPE(domain)，一切状态变量与中间量的载体）与 `config_flags`（namelist 快照）。
-- USE 清单本身就是内核的"软件物料表"：`module_small_step_em`、`module_em`、`module_big_step_utilities_em`、`module_bc`、`module_bc_em`、`module_diffusion_em`、`module_polarfft`、`module_first_rk_step_part1/2`、`module_after_all_rk_steps`、`module_stoch`（经 `module_physics_addtendc` 间接）、`module_avgflx_em`、`module_cpl`（耦合器）等——21.8.2 的依赖树以此为根。
+- USE 清单本身就是内核的“软件物料表”：`module_small_step_em`、`module_em`、`module_big_step_utilities_em`、`module_bc`、`module_bc_em`、`module_diffusion_em`、`module_polarfft`、`module_first_rk_step_part1/2`、`module_after_all_rk_steps`、`module_stoch`（经 `module_physics_addtendc` 间接）、`module_avgflx_em`、`module_cpl`（耦合器）等——21.8.2 的依赖树以此为根。
 
 ### 21.2.2　第二站：域尺寸、tile 与自适应时步
 
@@ -201,7 +201,7 @@ dts = grid%dt/float(num_sound_steps)
 ### 21.2.4　第四站：步前清理（DFI 与 use_theta_m）
 
 - `specified` 且 `constant_bc`（数字滤波 DFI 场景）时 `module_bc_em.F: zero_bdytend` 清空边界倾向缓冲 `*_btxs/...`；
-- `use_theta_m=1` 时调用 `module_big_step_utilities_em.F: initialize_moist_old` 给 `moist_old(P_Qv)` 一个初值——注释解释得很清楚：湿位温的"旧值"要到 RK 循环后段平流完才存在，第一步需要合理种子。
+- `use_theta_m=1` 时调用 `module_big_step_utilities_em.F: initialize_moist_old` 给 `moist_old(P_Qv)` 一个初值——注释解释得很清楚：湿位温的“旧值”要到 RK 循环后段平流完才存在，第一步需要合理种子。
 
 ### 21.2.5　第五站：Runge–Kutta 循环与步长装配
 
@@ -248,7 +248,7 @@ calc_php           : php（扰动位势半层量）
 
 ### 21.2.7　第七站：物理被调用的时刻（part1）
 
-**这是全书第 III 部所有物理章的"总开关"。** 源码用 `rk_step_is_one : IF (rk_step == 1)` 把整个物理块包住——
+**这是全书第 III 部所有物理章的“总开关”。** 源码用 `rk_step_is_one : IF (rk_step == 1)` 把整个物理块包住——
 
 > **结论（验收答案）**：非时间分裂物理（辐射、陆面、PBL、积云、浅对流、FDDA）**每个时间步只在 rk_step==1 被调用一次**，其倾向存入 `ru_tendf/rv_tendf/rw_tendf/ph_tendf/t_tendf/mu_tend/tke_tend`，在随后的每个 RK 步中被 `rk_tendency` 加入（见 21.2.9）；微物理更是整个 RK 循环结束后才跑（21.2.14）。
 
@@ -269,11 +269,11 @@ flowchart TD
     K --> L["fddagd_driver<br/>nudging FDDA"]
 ```
 
-对，顺序就是 ch14/ch15 源码走读时反复引用的那条链——本章把它钉死在 `module_first_rk_step_part1.F` 上。若你想给某个物理方案"降频"（比如辐射隔步调用），改的正是这个文件里的调用节律（`phys/module_radiation_driver.F` 内部另有 `radt` 节拍控制，ch12 §12.5）。
+对，顺序就是 ch14/ch15 源码走读时反复引用的那条链——本章把它钉死在 `module_first_rk_step_part1.F` 上。若你想给某个物理方案“降频”（比如辐射隔步调用），改的正是这个文件里的调用节律（`phys/module_radiation_driver.F` 内部另有 `radt` 节拍控制，ch12 §12.5）。
 
 ### 21.2.8　第八站：物理倾向的深加工（part2）
 
-`dyn_em/module_first_rk_step_part2.F` 紧跟 part1，同样只在 rk_step==1 执行。它的职责是"把物理/湍流的原料变成动力倾向"，实测调用序：
+`dyn_em/module_first_rk_step_part2.F` 紧跟 part1，同样只在 rk_step==1 执行。它的职责是“把物理/湍流的原料变成动力倾向”，实测调用序：
 
 ```text
 RAND_PERT_UPDATE × n        : 随机扰动方案（SKEBS/SPP 的场更新，module_stoch.F）
@@ -300,7 +300,7 @@ horizontal_diffusion_2      : 水平扩散（u/v/w/t）
 
 ### 21.2.9　第九站：rk_tendency——大步长动力项总装
 
-`dyn_em/module_em.F: rk_tendency` 是内核的"总装车间"，每个 RK 步执行一次。它先把十个倾向数组清零，然后按固定顺序装配（当次实测顺序）：
+`dyn_em/module_em.F: rk_tendency` 是内核的“总装车间”，每个 RK 步执行一次。它先把十个倾向数组清零，然后按固定顺序装配（当次实测顺序）：
 
 | 序 | 计算块 | 落点子程序 | 物理含义 |
 |---|---|---|---|
@@ -323,12 +323,12 @@ horizontal_diffusion_2      : 水平扩散（u/v/w/t）
 
 ### 21.2.10　第十站：大步长边界倾向
 
-平流与扩散算完后，侧边界"吃进"边界条件的倾向：
+平流与扩散算完后，侧边界“吃进”边界条件的倾向：
 
-- `module_bc_em.F: relax_bdy_dry`：**张弛区（relax zone）Davies 方案**——把边界倾向往"边界值时间倾向 + 向 wrfbdy 内插值松弛"的方向拉（`&bdy_control` 的 `spec_bdy_width=5/spec_zone=1/relax_zone=4`，Registry 默认实测）；系数 `fcx/gcx` 由 `module_bc_em.F: lbc_fcx_gcx` 生成；
+- `module_bc_em.F: relax_bdy_dry`：**张弛区（relax zone）Davies 方案**——把边界倾向往“边界值时间倾向 + 向 wrfbdy 内插值松弛”的方向拉（`&bdy_control` 的 `spec_bdy_width=5/spec_zone=1/relax_zone=4`，Registry 默认实测）；系数 `fcx/gcx` 由 `module_bc_em.F: lbc_fcx_gcx` 生成；
 - `module_bc_em.F: spec_bdy_dry`：**指定区（spec zone）硬替换**——最外 spec_zone 圈直接用 wrfbdy 的值；
-- `spec_bdy_dry_perturb`（两处调用）：SKEBS 随机扰动也作用于边界（源码注释署名 "KRS 9/12/2012"）；
-- `module_em.F: rk_addtend_dry`：把大步倾向加回 `*_2` 场，完成该 RK 步的"动力半步"。
+- `spec_bdy_dry_perturb`（两处调用）：SKEBS 随机扰动也作用于边界（源码注释署名 “KRS 9/12/2012”）；
+- `module_em.F: rk_addtend_dry`：把大步倾向加回 `*_2` 场，完成该 RK 步的“动力半步”。
 
 ### 21.2.11　第十一站：声波小步长循环
 
@@ -366,7 +366,7 @@ bound_tke/bound_qna     : TKE/数浓度上下限
 
 ### 21.2.13　第十三站：RK 步间收尾
 
-`rk_step_1_check : IF ( rk_step < rk_order )` 块——**不是最后一步才做**的事（名字有点误导，逻辑是"除最后一步外都要做"）：
+`rk_step_1_check : IF ( rk_step < rk_order )` 块——**不是最后一步才做**的事（名字有点误导，逻辑是“除最后一步外都要做”）：
 
 - `module_big_step_utilities_em.F: calc_p_rho_phi`：由 θ、μ 重新诊断 p/ρ/al（状态方程）；
 - 极区滤波 `module_polarfft.F: couple_scalars_for_filter → pxft → uncouple_scalars_for_filter`（对 moist/chem/tracer/scalar 各跑一遍）；
@@ -407,22 +407,22 @@ RK 循环结束后（`END DO Runge_Kutta_loop`），solve_em 继续跑完一个�
 
 ### 21.3.2　advance_mu_t：质量与位温（ADT eqn 47）
 
-`module_small_step_em.F: advance_mu_t` 的 `<DESCRIPTION>` 自述："advances the explicit perturbation theta equation and the mass conservation equation. In addition, the small timestep omega is updated"。质量方程即 ADT 式 47：
+`module_small_step_em.F: advance_mu_t` 的 `<DESCRIPTION>` 自述：“advances the explicit perturbation theta equation and the mass conservation equation. In addition, the small timestep omega is updated”。质量方程即 ADT 式 47：
 
 $$\frac{\partial \mu}{\partial t} = -m_x m_y\Big[\frac{\partial ( \mu u/m_y)}{\partial x} + \frac{\partial(\mu v/m_x)}{\partial y}\Big] - \frac{\partial(\mu \dot\eta/m_x m_y)}{\partial \eta}\;,$$
 
-源码注释 "ADT eqn 47: partial drho/dt = ..."（把 ρ 换成 μ 的等价写法）与语句逐一对应：水平散度用 `advance_uv` 刚算出的新速度，`ww`（μ 耦合的 η 通量）由连续性回推——注释还特别强调 "mu is not coupled with the map scale factor. ww (omega) IS coupled"。位温方程同样显式：θ 的新值 = θ + dts·(θ 倾向 + ft（物理温度倾向）)。该子程序同时更新 `muave/t_ave`（小步平均，供 RK3 校正加权）。
+源码注释 “ADT eqn 47: partial drho/dt = ...”（把 ρ 换成 μ 的等价写法）与语句逐一对应：水平散度用 `advance_uv` 刚算出的新速度，`ww`（μ 耦合的 η 通量）由连续性回推——注释还特别强调 “mu is not coupled with the map scale factor. ww (omega) IS coupled”。位温方程同样显式：θ 的新值 = θ + dts·(θ 倾向 + ft（物理温度倾向）)。该子程序同时更新 `muave/t_ave`（小步平均，供 RK3 校正加权）。
 
 ### 21.3.3　advance_w 与 calc_coef_w：垂直方向的半隐式
 
-垂直动量 + 位势方程是唯一"隐式"的部分：`module_small_step_em.F: calc_coef_w` 先算三层系数 `a/alpha/gamma`（依赖 cqw、c2a、dts_rk、g、epssm），然后 `advance_w` 用这些系数做**逐柱的隐式三点递推**——这是稳定性允许大时间步的关键（垂直声波若全显式，$\Delta t$ 会被压到秒级）。`top_lid`（刚性顶）在系数里体现。水平散度项用**步前保存的 `u_save/v_save`**（小步内不更新），这是 ARW "split-explicit" 的标准设计；`sumflux` 对通量做守恒性修正。
+垂直动量 + 位势方程是唯一“隐式”的部分：`module_small_step_em.F: calc_coef_w` 先算三层系数 `a/alpha/gamma`（依赖 cqw、c2a、dts_rk、g、epssm），然后 `advance_w` 用这些系数做**逐柱的隐式三点递推**——这是稳定性允许大时间步的关键（垂直声波若全显式，$\Delta t$ 会被压到秒级）。`top_lid`（刚性顶）在系数里体现。水平散度项用**步前保存的 `u_save/v_save`**（小步内不更新），这是 ARW “split-explicit” 的标准设计；`sumflux` 对通量做守恒性修正。
 
 ### 21.3.4　calc_p_rho 与 small_step_prep/finish
 
 - `module_small_step_em.F: calc_p_rho`：状态方程 $p=p_0\eta^\alpha\,\exp(\cdots)$ 的差分实现（由 al、t_2、mu 回代扰动气压与 1/ρ），每个小步末尾执行一次；
 - `small_step_prep`：把全量场拆成扰动量并做 μ 耦合（含 `mudf` 分解因子）；`small_step_finish` 反向解耦，并完成 RK3 校正所需的加权平均（`ru_m/rv_m/ww_m/mut/muts`）。
 
-> **教学注**：把 21.3 四小节连起来读一遍，你会发现 ARW 的"小步长"其实就是一个教科书级的声波投影法（projection method）：动量→质量/热力→垂直隐式→状态回代。书第 7 章的"适应过程 vs 平流过程"尺度分离论证，就是这段代码存在的理由。
+> **教学注**：把 21.3 四小节连起来读一遍，你会发现 ARW 的“小步长”其实就是一个教科书级的声波投影法（projection method）：动量→质量/热力→垂直隐式→状态回代。书第 7 章的“适应过程 vs 平流过程”尺度分离论证，就是这段代码存在的理由。
 
 ---
 
@@ -441,14 +441,14 @@ $$\frac{\partial \mu}{\partial t} = -m_x m_y\Big[\frac{\partial ( \mu u/m_y)}{\p
 | `advect_weno_u/v/w`、`advect_scalar_weno(_pd)` | 5 阶 WENO | `*_adv_opt=WENO` |
 | `advect_u/v/w/s_implicit`、`advect_ph_implicit` | 隐式垂直平流（IEVA） | `momentum_adv_opt`/IEVA 选项 |
 
-WENO 的血统写在源码头注里（`advect_scalar_weno` 头注原文）："5th-order WENO scheme adapted from COMMAS. See Jiang and Shu, 1996, J. Comp. Phys. v.126, 202-223; Shu 2003; Also used by Bryan 2005, Mon. Wea. Rev."——案例 33。
+WENO 的血统写在源码头注里（`advect_scalar_weno` 头注原文）：“5th-order WENO scheme adapted from COMMAS. See Jiang and Shu, 1996, J. Comp. Phys. v.126, 202-223; Shu 2003; Also used by Bryan 2005, Mon. Wea. Rev.”——案例 33。
 
 ### 21.4.2　正定修正
 
 高阶平流不保正：湿度/数浓度可能出现负值。两道保险：
 
 1. `dyn_em/module_em.F: rk_update_scalar_pd`：平流前存 `moist_old`，更新后调用正定修正；
-2. `dyn_em/module_positive_definite.F: positive_definite_slab`：**逐条 x 向 slab 守恒重分配**——若某行总和为负全置零，否则"减去负谷底、按比例回补"使每点非负且总质量守恒（该算法逐行读过，如上描述）。`flow_dep_bdy`（`share/module_bc.F`）保证边界处只在流出时外推。
+2. `dyn_em/module_positive_definite.F: positive_definite_slab`：**逐条 x 向 slab 守恒重分配**——若某行总和为负全置零，否则“减去负谷底、按比例回补”使每点非负且总质量守恒（该算法逐行读过，如上描述）。`flow_dep_bdy`（`share/module_bc.F`）保证边界处只在流出时外推。
 
 ### 21.4.3　阻尼与滤波总表
 
@@ -463,7 +463,7 @@ WENO 的血统写在源码头注里（`advect_scalar_weno` 头注原文）："5t
 
 ### 21.4.4　扩散与 km/kh
 
-ch14 §14.5 讲过 `module_diffusion_em.F: calculate_km_kh` 的三个家族（smagorinsky/tke/isotropic）。在时间步里的位置：part2 算 km/kh（rk_step==1 一次）→ `rk_tendency` 的 `horizontal/vertical_diffusion` 消费它们。注意**物理 PBL 方案的垂直混合不走这套**——PBL 方案直接给倾向（part1），`kvdif` 的二阶扩散只兜底自由大气（这就是"diff_opt=0 时 PBL 内仍能混合、自由大气几乎无扩散"的机制解释）。
+ch14 §14.5 讲过 `module_diffusion_em.F: calculate_km_kh` 的三个家族（smagorinsky/tke/isotropic）。在时间步里的位置：part2 算 km/kh（rk_step==1 一次）→ `rk_tendency` 的 `horizontal/vertical_diffusion` 消费它们。注意**物理 PBL 方案的垂直混合不走这套**——PBL 方案直接给倾向（part1），`kvdif` 的二阶扩散只兜底自由大气（这就是“diff_opt=0 时 PBL 内仍能混合、自由大气几乎无扩散”的机制解释）。
 
 ---
 
@@ -513,7 +513,7 @@ num_sound_steps = 4 ; dts = 4.5 s
 d01 每步小步数 7 → 5 天累计 56000 个声波小步
 ```
 
-**三步交叉验证全部咬合**：(1) 由 432000 s 与实测步数反推的 dt 恰为 54/18 s；(2) 公式给出的 $n_s=4$ 使 d01 每步 7 个小步；(3) 乘以步数得 d01 五天 56000、d02 168000 个声波小步——结合 ch08 实测步均耗时（d01 0.361 s、d02 0.0838 s），可粗估"一个声波小步"在 64 核上的分摊成本约 0.045 s（d01，含全部四件事）。这类"账本思维"在优化 namelist 时步、估算机时（ch08 §8.6 的经验公式）时非常有用。
+**三步交叉验证全部咬合**：(1) 由 432000 s 与实测步数反推的 dt 恰为 54/18 s；(2) 公式给出的 $n_s=4$ 使 d01 每步 7 个小步；(3) 乘以步数得 d01 五天 56000、d02 168000 个声波小步——结合 ch08 实测步均耗时（d01 0.361 s、d02 0.0838 s），可粗估“一个声波小步”在 64 核上的分摊成本约 0.045 s（d01，含全部四件事）。这类“账本思维”在优化 namelist 时步、估算机时（ch08 §8.6 的经验公式）时非常有用。
 
 ---
 
@@ -527,8 +527,8 @@ d01 每步小步数 7 → 5 天累计 56000 个声波小步
 | 湿度出现负值/数浓度异常 | 正定修正只在 `rk_update_scalar_pd` 路径；`moist_adv_opt` 选错 | 用正定平流选项；检查 `positive_definite_slab` 触发日志 |
 | 高纬/极区出现棋盘噪声 | 极区 FFT 滤波未开 | `polar=.true.` + `fft_filter_lat`（`module_polarfft.F`） |
 | `dampcoef` 拉满后低层也被阻尼 | `zdamp` 深度过大 | `zdamp` 一般 ≤ 5000 m |
-| 边界"反弹"或反射波 | `spec_bdy_width` 太窄/`relax_zone` 太窄 | 默认 5/1/4 已平衡；加大 `spec_bdy_width` |
-| 微物理物理量在"物理全关"算例恒为 0 | PSFC/T2/HFX 等由面层方案填写（ch18 实测） | 诊断改用动力学量 |
+| 边界“反弹”或反射波 | `spec_bdy_width` 太窄/`relax_zone` 太窄 | 默认 5/1/4 已平衡；加大 `spec_bdy_width` |
+| 微物理物理量在“物理全关”算例恒为 0 | PSFC/T2/HFX 等由面层方案填写（ch18 实测） | 诊断改用动力学量 |
 
 更系统的运行期排查表见附录 [app_c](app_c_troubleshooting.md)；编译期问题见编译手册与 ch05。
 
@@ -550,7 +550,7 @@ d01 每步小步数 7 → 5 天累计 56000 个声波小步
 **案 29｜WRF-CMAQ 双向耦合（空气质量—气象反馈）**
 - 课题：把 CMAQ 化学传输模式嵌入 WRF，实现气溶胶—辐射/云反馈的双向在线耦合。
 - 公开代码情况：①官方随包分发（编译宏 `WRF_CMAQ==1`）。改动完全暴露在 `dyn_em/solve_em.F` 末段：`aqprep` → `CMAQ_DRIVER`（模型日期/步长传入）→ `FEEDBACK_READ`；另 `cpl_store_input`（耦合器输入缓存）与 `module_cpl` 通用耦合通道。
-- 结构要点：CMAQ 作为**子程序**运行在 `solve_em` 返回前（每时间步或按 `wrf_cmaq_freq` 隔步），化学影响通过辐射/微物理字段反馈回气象——这是"第三方模式挂进内核主循环"的最完整范例。
+- 结构要点：CMAQ 作为**子程序**运行在 `solve_em` 返回前（每时间步或按 `wrf_cmaq_freq` 隔步），化学影响通过辐射/微物理字段反馈回气象——这是“第三方模式挂进内核主循环”的最完整范例。
 - 文献：Wong, D., J. Pleim, R. Mathur, et al., 2012: WRF-CMAQ two-way coupled system with aerosol feedback: software development and preliminary results. *Geosci. Model Dev.*, **5**（网络检索证实条目；页码未核）。
 - 与正文对应：21.2.14 第 11 条挂点。
 
@@ -562,22 +562,22 @@ d01 每步小步数 7 → 5 天累计 56000 个声波小步
 - 与正文对应：21.2.7 的挂点图。
 
 **案 31｜MAD-WRF：气溶胶—云—对流的云示踪**
-- 课题：区分"哪些云水来自气溶胶活化"，支撑 ACI（气溶胶—云相互作用）研究。
+- 课题：区分“哪些云水来自气溶胶活化”，支撑 ACI（气溶胶—云相互作用）研究。
 - 公开代码情况：①随包分发。`phys/module_madwrf.F`（作者头注：Pedro A. Jimenez，NCAR；云顶亮温→云顶高度反演 `Calc_cldtopz_from_brtemp` 等初始化件）；Registry 三条：包 `madwrf_mp`（`mp_physics==96`，专用微物理）、包 `madwrf`（`madwrf_opt==2` → `tracer: tr_qc/tr_qi/tr_qs`）、`cldinit`（`madwrf_cldinit==1`）。
-- 内核侧改动：`dyn_em/solve_em.F` 的 `cloud_tracer_nudge` 调用（`madwrf_opt==2` 时把 tr_qc/tr_qi/tr_qs 向 `moist` 的 qc/qi/qs 松弛，参数 `madwrf_dt_relax/madwrf_dt_nudge`，Registry 记录原文 "MAD-WRF model"）；`dyn_em/module_initialize_real.F`、`share/module_check_a_mundo.F`、`phys/module_physics_init.F` 的配套初始化。
+- 内核侧改动：`dyn_em/solve_em.F` 的 `cloud_tracer_nudge` 调用（`madwrf_opt==2` 时把 tr_qc/tr_qi/tr_qs 向 `moist` 的 qc/qi/qs 松弛，参数 `madwrf_dt_relax/madwrf_dt_nudge`，Registry 记录原文 “MAD-WRF model”）；`dyn_em/module_initialize_real.F`、`share/module_check_a_mundo.F`、`phys/module_physics_init.F` 的配套初始化。
 - 文献线索：NCAR RAL 的 MAD-WRF 项目页（本次未核验论文条目，使用前请自行检索）。
 - 与正文对应：21.2.14 第 5 条。
 
 **案 32｜use_theta_m：以湿位温为热力学预报量**
 - 课题：湿大气的热力学一致性（温度—水汽—气压演化自洽），涉及湿位温 θ_m = θ(1+1.61q_v)。
-- 改动形态：官方上游化的"开关式算法替换"——`Registry.EM_COMMON` 的 `rconfig use_theta_m`（4.8.0 默认 **1**）+ `dyn_em/module_big_step_utilities_em.F` 内多处 `IF ( use_theta_m .EQ. 1 )` 分支（`rk_step_prep/calc_cq/calc_ww_cp/phy_prep/moist_physics_prep_em/moist_physics_finish_em` 等约 9 处，实测计数）+ `dyn_em/module_bc_em.F: theta_and_thetam_lbc_only`（边界两种口径）+ `solve_em` 的 `initialize_moist_old` 种子逻辑。
-- 教学价值：这是"**给内核加一个热力学口径开关**"的标准做法——变量在 Registry 层二态、代码层多点分支，改造时必须全链路摸清（否则边界与内部口径不一致）。
+- 改动形态：官方上游化的“开关式算法替换”——`Registry.EM_COMMON` 的 `rconfig use_theta_m`（4.8.0 默认 **1**）+ `dyn_em/module_big_step_utilities_em.F` 内多处 `IF ( use_theta_m .EQ. 1 )` 分支（`rk_step_prep/calc_cq/calc_ww_cp/phy_prep/moist_physics_prep_em/moist_physics_finish_em` 等约 9 处，实测计数）+ `dyn_em/module_bc_em.F: theta_and_thetam_lbc_only`（边界两种口径）+ `solve_em` 的 `initialize_moist_old` 种子逻辑。
+- 教学价值：这是“**给内核加一个热力学口径开关**”的标准做法——变量在 Registry 层二态、代码层多点分支，改造时必须全链路摸清（否则边界与内部口径不一致）。
 - 与正文对应：21.1.3、21.2.4、21.2.6。
 
 **案 33｜WENO 平流：内核数值格式替换**
 - 课题：强梯度/化学传输场景下的无振荡高阶平流。
 - 公开代码：①`dyn_em/module_advect_em.F: advect_scalar_weno/advect_scalar_wenopd/advect_weno_u/v/w`（约 4000 行）。
-- 血统（头注原文）："adapted from COMMAS. See Jiang and Shu, 1996, J. Comp. Phys. v.126, 202-223; Shu 2003; Also used by Bryan 2005, Mon. Wea. Rev."
+- 血统（头注原文）：“adapted from COMMAS. See Jiang and Shu, 1996, J. Comp. Phys. v.126, 202-223; Shu 2003; Also used by Bryan 2005, Mon. Wea. Rev.”
 - 接口设计：不改 `rk_tendency` 主干，只加 `chem_adv_opt/tracer_adv_opt/tke_adv_opt` 分支（`Registry.EM_COMMON` rconfig；且 WENO 的标量更新被推迟到最后一个 RK 步——21.2.12）。
 - 与正文对应：21.4.1。
 
@@ -621,14 +621,14 @@ flowchart TD
     P2 --> DIFF
 ```
 
-读法提示：`module_em.F` 是"总装"（RK 主逻辑），`module_big_step_utilities_em.F` 是"零件库"（42 个子程序，本次实测清单），`module_small_step_em.F` 是独立小步长机器。三者只被 `solve_em` 单向调用，互不回头——这就是内核扩展时"加新倾向项"通常改 `module_em`/`module_big_step_utilities`、加新物理走 `part1/2` 的分工依据。
+读法提示：`module_em.F` 是“总装”（RK 主逻辑），`module_big_step_utilities_em.F` 是“零件库”（42 个子程序，本次实测清单），`module_small_step_em.F` 是独立小步长机器。三者只被 `solve_em` 单向调用，互不回头——这就是内核扩展时“加新倾向项”通常改 `module_em`/`module_big_step_utilities`、加新物理走 `part1/2` 的分工依据。
 
-### 21.8.3　"公式 ↔ 语句"对照总表（内核篇）
+### 21.8.3　“公式 ↔ 语句”对照总表（内核篇）
 
 | 公式/机制（ADT 或 ARW 文献） | 文件.子程序 | 语句要点 |
 |---|---|---|
 | 水平动量小步 + 扰动气压梯度（ADT 44/45） | `module_small_step_em.F: advance_uv` | 注释逐字引用 ADT 式号 |
-| 质量连续（ADT 47） | `module_small_step_em.F: advance_mu_t` | ww 由散度回推；注释 "mu is not coupled... ww IS coupled" |
+| 质量连续（ADT 47） | `module_small_step_em.F: advance_mu_t` | ww 由散度回推；注释 “mu is not coupled... ww IS coupled” |
 | 位温方程小步 | `advance_mu_t` | θ_new = θ + dts·(倾向+ft) |
 | 垂直动量/位势半隐式 | `advance_w` + `calc_coef_w` | 逐柱三点隐式递推（a/alpha/gamma） |
 | 状态方程回代 | `calc_p_rho` / `module_big_step_utilities_em.F: calc_p_rho_phi` | p/ρ/al 由 θ,μ 重诊断 |
@@ -646,14 +646,14 @@ flowchart TD
 
 ## 21.9　延伸阅读
 
-- Skamarock, W. C., J. B. Klemp, J. Dudhia, et al., 2008/2019: *A Description of the Advanced Research WRF Model*（NCAR/TN-475+STR）——本章 "ADT" 的正主，式 44/45/47 就在里面。
+- Skamarock, W. C., J. B. Klemp, J. Dudhia, et al., 2008/2019: *A Description of the Advanced Research WRF Model*（NCAR/TN-475+STR）——本章 “ADT” 的正主，式 44/45/47 就在里面。
 - Skamarock, W. C., J. B. Klemp, 2008: A time-split nonhydrostatic atmospheric model for weather research and forecasting applications. *J. Comput. Phys.*, **227**, 3465–3485——split-explicit + RK3 的设计论文。
 - Wicker, L. J., W. C. Skamarock, 2002: Time-splitting methods for elastic models using forward time schemes. *Mon. Wea. Rev.*, **130**, 2088–2097——RK3 选型依据。
 - Klemp, J. B., W. C. Skamarock, J. Dudhia, 2007: Conservative split-explicit time integration... *Mon. Wea. Rev.*, **135**, 2897——小步长通量形式的守恒设计。
 - Klemp, J. B., 2011: A terrain-following coordinate with hybrid generalized terrain-following transformations. *Mon. Wea. Rev.*, **139**, 1008——hybrid c1–c4（ch10 已引）。
 - Jiang, G.-S., C.-W. Shu, 1996: Efficient implementation of weighted ENO schemes. *J. Comput. Phys.*, **126**, 202–223——WENO（按 `advect_scalar_weno` 头注）。
 - Berner et al. 2011（案 28）、Wong et al. 2012（案 29）。
-- 《大气物理学》第 7 章动力学概念部分（地转平衡、尺度分析——理解"为什么平流与声波可以分开"）。
+- 《大气物理学》第 7 章动力学概念部分（地转平衡、尺度分析——理解“为什么平流与声波可以分开”）。
 - 教材内：[ch03](ch03_architecture_overview.md) §3.8（驱动层）、[ch10](ch10_vertical_coords_hydrostatics.md)（η/hybrid 坐标）、[ch14](ch14_pbl_family.md)/[ch15](ch15_cumulus_family.md)（物理调用侧）、[ch20](ch20_modifying_wrf.md)（tile 实改）。
 
 ## 21.10　术语速查
@@ -676,4 +676,4 @@ flowchart TD
 
 ---
 
-**全书至此收束**。从 ch01 的行星大气，到本章 `solve_em` 的每一次心跳——《大气物理学》给了我们"天空为什么这样运动"，WRF 源码给了我们"怎样把这个运动写进计算机"。愿你合上这份讲义后，打开的是 `dyn_em/solve_em.F`，而不是另一份教程。
+**全书至此收束**。从 ch01 的行星大气，到本章 `solve_em` 的每一次心跳——《大气物理学》给了我们“天空为什么这样运动”，WRF 源码给了我们“怎样把这个运动写进计算机”。愿你合上这份讲义后，打开的是 `dyn_em/solve_em.F`，而不是另一份教程。

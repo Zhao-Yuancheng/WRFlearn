@@ -256,3 +256,20 @@
 - 素材底稿：workspace/context/ch20_material.md（三级设计、事故链、输入指纹、构建 v2/v3 全账）
 - 同日全书补充：ch01/ch02 交付；ch03–ch19 三类专栏（科研改造案例库/模块依赖树/核心代码）；ch20 §20.7.1 案例总索引
 - 下一章：ch21 solve_em.F 全流程（第 V 部）；随后附录 a–d 与 index.md
+
+### ch21 solve_em.F 全流程 —— 已核验（2026-10-11，第 V 部收官章）
+交付：`doc\ch21_solve_em_dynamics.md`（技术章六段式 + 三类专栏；3 mermaid；轻轨实验 1 组）
+- 源码锚点（全部当次 Read/Grep 实测）：solve_em 5197 行、十四站走读；rk_step_prep/rk_tendency（module_em，14 步装配序）；first_rk_step_part1/2 调用序逐条（物理调用时刻=验收答案）；small_steps 循环五件套（advance_uv/advance_mu_t/advance_w/calc_p_rho/sumflux）；标量四循环；RK 后段（microphysics 在 RK 循环之后——关键修正）；after_all_rk_steps→diagnostics_driver
+- 公式↔语句：ADT eqn 44/45（advance_uv 注释）、ADT eqn 47（advance_mu_t 注释）、垂直半隐式（calc_coef_w/advance_w）、状态方程（calc_p_rho/calc_p_rho_phi）；正定修正（positive_definite_slab 逐行读）；WENO（advect_scalar_weno 头注=Jiang & Shu 1996）
+- 案例库案 28–35：SKEBS（module_stoch.F 头注=Berner 2011 MWR）、WRF-CMAQ（Wong 2012 GMD）、WRF-Fire（part1 挂点）、MAD-WRF（Registry 包 mp_physics==96 + cloud_tracer_nudge）、use_theta_m（默认 1，big_step 9 分支）、WENO 平流、Polar 滤波（module_polarfft）、IEVA（module_ieva_em）
+- 实验：ch21_timestep_audit.py——重演 num_sound_steps 公式与 RK3 步长装配，d01 8000 步/d02 24000 步与 439419 逐位吻合；每步 7 个声波小步
+- 依赖树：dyn_em 内核文件级 mermaid（12 文件 + 代表函数清单）；公式↔语句总表（ADT 式号系）
+- 图：mermaid ×3（调用链位置/RK3 时序/物理调用序）；脚本 workspace/scripts/ch21_timestep_audit.py、ch21_recon.py；日志 workspace/logs/ch21_timestep_audit.log
+
+### 附录 a–d + index.md —— 已核验（2026-10-11，批次 4 收官）
+- app_a：三列对照（书符号↔WRF 代码↔Registry/输出名）+ `module_model_constants.F` 全常数 vs 书附录 C 偏差表（g=9.81 vs 书 9.80665 等）
+- app_b：九类术语汇编（ch10–ch17/ch21 术语表 + 工程术语）
+- app_c：c.0 万能诊断五步 + c.1–c.8（编译/WPS/real/运行/IO/内核/改造/后处理）+ 兼容性守门员六条；改编自全书各章速查（汇总底稿 workspace/tmp/app_extract_*.md）
+- app_d：文献三级标记（核验/通行/线索）+ 数据源（ERA5 致谢 liuyl17、WPS_GEOG）+ 工程资产索引
+- index.md：21 章+4 附录总目录（文件名 Glob 核对）、使用说明、三类专栏体例指引、页码换算规则（印刷页 N → page_{N+14}）、阅读路径建议、修订记录
+- 全书结构至此完整：第 I–V 部 21 章 + 附录 4 件 + index
