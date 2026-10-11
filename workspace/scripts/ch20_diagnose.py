@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """ch20 诊断（改造 WRF 三级实战）：
 
   L1：T2_PEAK 自检 —— 单调性 / 与逐时 T2 运行最大值的关系 / L1a(基线) 与 L1b(加诊断) 的逐位对照
   L2：MYNN PBLH 阈值三档（delt_thv = 1.25 / 0.5 / 2.5 K）—— PBLH 日循环 + Δ 空间图 + 判据方向核验
-  L3：BEM 屋顶反照率 2D 化 —— 注入场核验 / 东(0.8)西(0.2)城区 TS_URB2D 四线对照 / 单变量证据（SWDOWN 不变）
+  L3：BEM 屋顶反照率 2D 化 —— 注入场核验 / 东(0.8)西(0.2)城区 TS_URB 四线对照 / 单变量证据（SWDOWN 不变）
 
 输入：workspace/data/ch20/stage/{L1a,L1b,L2a,L2b,L3off,L3on}_{d01,d02}_2d.nc
 输出：doc/figs/ch20_L1_diag.png / ch20_L2_pblh.png / ch20_L3_albedo.png
@@ -250,20 +250,20 @@ def part_L3():
     log("L3 输入一致性：L3on 与 L3off 的 ALBROF_2D max|Δ|=%.6g" %
         np.abs(np.asarray(on["ALBROF_2D"], dtype=float) - alb).max())
 
-    tsu = {("off", "east"): np.asarray(off["TS_URB2D"], dtype=float)[:, east].mean(axis=1),
-           ("off", "west"): np.asarray(off["TS_URB2D"], dtype=float)[:, west].mean(axis=1),
-           ("on", "east"): np.asarray(on["TS_URB2D"], dtype=float)[:, east].mean(axis=1),
-           ("on", "west"): np.asarray(on["TS_URB2D"], dtype=float)[:, west].mean(axis=1)}
+    tsu = {("off", "east"): np.asarray(off["TS_URB"], dtype=float)[:, east].mean(axis=1),
+           ("off", "west"): np.asarray(off["TS_URB"], dtype=float)[:, west].mean(axis=1),
+           ("on", "east"): np.asarray(on["TS_URB"], dtype=float)[:, east].mean(axis=1),
+           ("on", "west"): np.asarray(on["TS_URB"], dtype=float)[:, west].mean(axis=1)}
     for k in [("on", "east"), ("on", "west"), ("off", "east"), ("off", "west")]:
         s = tsu[k]
-        log("L3 TS_URB2D[%s/%s]: min=%.2f max=%.2f 时均=%.2f K" % (k[0], k[1], s.min(), s.max(), s.mean()))
+        log("L3 TS_URB[%s/%s]: min=%.2f max=%.2f 时均=%.2f K" % (k[0], k[1], s.min(), s.max(), s.mean()))
     dE = tsu[("on", "east")] - tsu[("off", "east")]
     dW = tsu[("on", "west")] - tsu[("off", "west")]
-    log("L3 ΔTS_URB2D（开−关）: 东 时均=%.3f K（min %.3f / max %.3f）  西 时均=%.3f K（min %.3f / max %.3f）" %
+    log("L3 ΔTS_URB（开−关）: 东 时均=%.3f K（min %.3f / max %.3f）  西 时均=%.3f K（min %.3f / max %.3f）" %
         (dE.mean(), dE.min(), dE.max(), dW.mean(), dW.min(), dW.max()))
     # 单变量证据（分级）：西组 = 表值 0.20 的严格对照，东组 = 处理
-    fe = np.asarray(on["TS_URB2D"], dtype=float) - np.asarray(off["TS_URB2D"], dtype=float)
-    log("L3 逐格 max|ΔTS_URB2D|: 东=%.3f K  西=%.3f K  全域=%.3f K" %
+    fe = np.asarray(on["TS_URB"], dtype=float) - np.asarray(off["TS_URB"], dtype=float)
+    log("L3 逐格 max|ΔTS_URB|: 东=%.3f K  西=%.3f K  全域=%.3f K" %
         (np.abs(fe[:, east]).max(), np.abs(fe[:, west]).max(), np.abs(fe).max()))
     sw = np.abs(np.asarray(on["SWDOWN"], dtype=float) - np.asarray(off["SWDOWN"], dtype=float))
     log("L3 逐格 max|ΔSWDOWN|: 全域=%.6g  东 %.6g / 西 %.6g（辐射输入不因开关而变）" %
@@ -274,7 +274,7 @@ def part_L3():
     for k, mx, nz, nn in rows:
         log("L3 对照  %-7s max|Δ|=%.6g  非零元 %d/%d" % (k, mx, nz, nn))
 
-    k12 = frame_at(on, 12) or (len(tt) - 1)
+    k12 = frame_at(on, 6) or frame_at(on, 12) or (len(tt) - 1)   # 06 UTC = 13 LT（白天峰）
     lon = np.asarray(on["XLONG"][0]); lat = np.asarray(on["XLAT"][0])
 
     fig, axes = plt.subplots(2, 2, figsize=(12.4, 8.6))
@@ -291,25 +291,25 @@ def part_L3():
     ax.plot(x, tsu[("on", "east")], "C3-", lw=1.8, label="东城区 开")
     ax.plot(x, tsu[("off", "west")], "C0--", lw=1.5, label="西城区 关")
     ax.plot(x, tsu[("on", "west")], "C0-", lw=1.8, label="西城区 开")
-    ax.set_xlabel("模拟时间（小时，自 %s）" % tt[0]); ax.set_ylabel("TS_URB2D (K)")
+    ax.set_xlabel("模拟时间（小时，自 %s）" % tt[0]); ax.set_ylabel("TS_URB (K)")
     ax.set_title("(b) 城市表皮温度：开关 × 东西城区", fontsize=11)
     ax.legend(fontsize=8); ax.grid(alpha=0.3)
 
     ax = axes[1, 0]
-    diff = np.asarray(on["TS_URB2D"][k12], dtype=float) - np.asarray(off["TS_URB2D"][k12], dtype=float)
+    diff = np.asarray(on["TS_URB"][k12], dtype=float) - np.asarray(off["TS_URB"][k12], dtype=float)
     vmax = float(np.abs(diff).max()) or 0.1
     m = ax.pcolormesh(lon, lat, diff, cmap="RdBu_r", vmin=-vmax, vmax=vmax, shading="auto")
-    plt.colorbar(m, ax=ax, label=r"$\Delta$TS_URB2D (K)", shrink=0.85)
+    plt.colorbar(m, ax=ax, label=r"$\Delta$TS_URB (K)", shrink=0.85)
     ax.set_xlabel("经度"); ax.set_ylabel("纬度")
-    ax.set_title("(c) ΔTS_URB2D（开−关），%s" % tt[k12][11:16], fontsize=11)
-    log("L3 ΔTS_URB2D 图（帧%d %s）: min=%.2f max=%.2f K" % (k12, tt[k12], diff.min(), diff.max()))
+    ax.set_title("(c) ΔTS_URB（开−关），%s" % tt[k12][11:16], fontsize=11)
+    log("L3 ΔTS_URB 图（帧%d %s）: min=%.2f max=%.2f K" % (k12, tt[k12], diff.min(), diff.max()))
 
     ax = axes[1, 1]
     names = ["SWDOWN", "PBLH", "T2", "TSK"]
     vals = [dict((k, mx) for k, mx, _, _ in rows).get(n, np.nan) for n in names]
-    key_tsu = float(np.abs(np.asarray(on["TS_URB2D"], dtype=float) -
-                           np.asarray(off["TS_URB2D"], dtype=float)).max())
-    names.append("TS_URB2D"); vals.append(key_tsu)
+    key_tsu = float(np.abs(np.asarray(on["TS_URB"], dtype=float) -
+                           np.asarray(off["TS_URB"], dtype=float)).max())
+    names.append("TS_URB"); vals.append(key_tsu)
     ax.bar(np.arange(len(names)), vals, color=["C7"] * 4 + ["C3"])
     ax.set_yscale("symlog", linthresh=1e-3)
     ax.set_xticks(np.arange(len(names))); ax.set_xticklabels(names, fontsize=9)

@@ -1,7 +1,7 @@
 # 第 6 章 WPS：从 ERA5 到 met_em 的数据加工厂
 
-> **本章定位**：第 II 部第四站。第 5 章让代码变成了可执行文件；本章让**原始数据**变成模式能吃的初始场与边界场。WPS（WRF Preprocessing System）是一个"数据加工厂"：把下载来的再分析资料（GRIB）和静态地理数据（地形、土地利用等）加工成 `met_em.*` 文件——它是 WPS 交给 `real.exe` 的交接单。
-> 学完本章，你将能够：独立写出 `namelist.wps` 的四节配置（含域设计计算）；看懂 GEOGRID.TBL / METGRID.TBL / Vtable 三套"表系统"的运作方式；亲手完成 geogrid → ungrib → metgrid 三步并有据可查地验证产物；并在三个"深水区"（ungrib 的时间窗口、自动补缺、中间文件的层号编码）上获得源码级的理解——这三处是多数教程不讲、但迟早会绊住你的地方。
+> **本章定位**：第 II 部第四站。第 5 章让代码变成了可执行文件；本章让**原始数据**变成模式能吃的初始场与边界场。WPS（WRF Preprocessing System）是一个“数据加工厂”：把下载来的再分析资料（GRIB）和静态地理数据（地形、土地利用等）加工成 `met_em.*` 文件——它是 WPS 交给 `real.exe` 的交接单。
+> 学完本章，你将能够：独立写出 `namelist.wps` 的四节配置（含域设计计算）；看懂 GEOGRID.TBL / METGRID.TBL / Vtable 三套“表系统”的运作方式；亲手完成 geogrid → ungrib → metgrid 三步并有据可查地验证产物；并在三个“深水区”（ungrib 的时间窗口、自动补缺、中间文件的层号编码）上获得源码级的理解——这三处是多数教程不讲、但迟早会绊住你的地方。
 > 本章所有结论均以本地源码（`source\WPSv4.7.0\`）与集群实测（兰州个例 v2 域，2025-07）核验；运行环境（容器化提交）见配套《WRF 编译手册》。
 
 ---
@@ -14,7 +14,7 @@
 2. **`namelist.wps` 四节逐项**：`&share` 的时间窗口设计、`&geogrid` 的域设计与投影参数、`&ungrib`、`&metgrid`；
 3. **三套表系统**：GEOGRID.TBL（地理数据源选择）、Vtable（GRIB 变量字典）、METGRID.TBL（字段与层映射）；
 4. **ungrib 的时间窗口机制**（源码实证）：为什么整月 4 GB 的 GRIB 只写出窗口内的 21 个文件；
-5. **中间文件（FILE:）格式**与它的层号编码"200100"之谜（源码实证）——读懂 METGRID.TBL 里的括号数字；
+5. **中间文件（FILE:）格式**与它的层号编码“200100”之谜（源码实证）——读懂 METGRID.TBL 里的括号数字；
 6. **兰州个例三步实录**：命令、日志、计时、产物结构与验证清单；
 7. **常见错误速查**：从报错到根因的映射。
 
@@ -39,7 +39,7 @@
 
 ### 读者前置
 
-- 第 5 章（WPS 的构建；运行环境）；第 4 章的"表驱动生成"思维（WPS 同样是表驱动，只是表换了名字）；
+- 第 5 章（WPS 的构建；运行环境）；第 4 章的“表驱动生成”思维（WPS 同样是表驱动，只是表换了名字）；
 - `&share` 等 namelist 语法（Fortran namelist 格式，与 `namelist.input` 同族）；
 - 会用 `ncdump -h` 看 netCDF 头（本章全部验证动作的基础）。
 
@@ -96,7 +96,7 @@ WPSv4.7.0/
 └── configure / compile   传统构建入口（编译产物三 exe 放在各自目录）
 ```
 
-注意一个易错点：**运行时 WPS 并不自动读取源码目录下的表**——它读取的是**运行目录**里的 `GEOGRID.TBL`、`METGRID.TBL`、`Vtable` 三个文件（通常用符号链接指过去）。本章实录将完整演示这个"三步链接+运行"模式。
+注意一个易错点：**运行时 WPS 并不自动读取源码目录下的表**——它读取的是**运行目录**里的 `GEOGRID.TBL`、`METGRID.TBL`、`Vtable` 三个文件（通常用符号链接指过去）。本章实录将完整演示这个“三步链接+运行”模式。
 
 ---
 
@@ -127,7 +127,7 @@ WPSv4.7.0/
 
 窗口自检：5 天 ÷ 6 h = 20 个间隔 → **21 个时刻**；这也是后文 met_em 应有 21×2=42 个文件的由来。**时刻数公式：`(end − start)/interval + 1`。**
 
-> 深水区预告：这个窗口不仅给 metgrid 用，**ungrib 也偷偷读它**（§6.4.3）——这是后文"为什么只解出 21 个时刻"的答案。
+> 深水区预告：这个窗口不仅给 metgrid 用，**ungrib 也偷偷读它**（§6.4.3）——这是后文“为什么只解出 21 个时刻”的答案。
 
 ### 6.2.2 `&geogrid`：域与投影
 
@@ -156,12 +156,12 @@ WPSv4.7.0/
 逐项要点（域设计是本节核心）：
 
 - **`dx/dy`**：父域网格距。**d01 = 9000 m（9 km）**；子域由 `parent_grid_ratio` 推得 3 km、1 km——**dx 只写父域一个值**，这是初学者的第一个坑（写成一串会报错）。
-- **`e_we/e_sn`**：每域的"网格点数"（含 1 个多余边界点：质量格点数 = e_we−1）。本个例：d01 90×90 → 质量网格 89×89，覆盖约 810 km × 810 km 的"西北区域"（含大尺度背景）；d02 112×112 → 111×111，覆盖约 336 km × 336 km 的"兰州+周边地形"。
+- **`e_we/e_sn`**：每域的“网格点数”（含 1 个多余边界点：质量格点数 = e_we−1）。本个例：d01 90×90 → 质量网格 89×89，覆盖约 810 km × 810 km 的“西北区域”（含大尺度背景）；d02 112×112 → 111×111，覆盖约 336 km × 336 km 的“兰州+周边地形”。
 - **`parent_grid_ratio`**：子/父网格距之比（本个例 3）。**约束**：`e_we(子) − 1` 必须能被 ratio 整除（111 = 3×37 ✓，这决定了 112 而非 111）。
 - **`i_parent_start/j_parent_start`**：子域在父域中的起始位置（1 基）。手算口诀：子域的父域跨度 = `(e_we(子)−1)/ratio`，居中时起点 ≈ `(e_we(父) − 跨度)/2`。本个例：跨度 37，起点取 27（左右余量 26/26，基本居中）。
 - **`map_proj='lambert'` + 投影五参数**：`ref_lat/ref_lon`（父域中心）、`truelat1/truelat2`（双标准纬线，本个例 35°/45°，紧扣兰州纬度带 36°N）、`stand_lon`（标准经线）。兰州位于 36.06N/103.83E——ref 取此值，意味着父域以兰州为中心铺开。
 - **`geog_data_res`**：每个域用什么分辨率/来源的静态地理数据（`'default'` / `'30s'` / `'2m'` …）。它的确切语义见 §6.3。
-- **`geog_data_path`**：WPS_GEOG 数据根目录；**`opt_geogrid_tbl_path='./'`**：在当前目录找 `GEOGRID.TBL`（这就是"运行目录放表"的配置侧缘由）。
+- **`geog_data_path`**：WPS_GEOG 数据根目录；**`opt_geogrid_tbl_path='./'`**：在当前目录找 `GEOGRID.TBL`（这就是“运行目录放表”的配置侧缘由）。
 
 ### 6.2.3 `&ungrib` 与 `&metgrid`：本个例的最简形态
 
@@ -179,11 +179,11 @@ WPSv4.7.0/
 ```
 
 - `out_format='WPS'`：中间文件格式（另有 `SI`/`MM5` 两个历史格式，见 §6.4.2 格式规格）；
-- `prefix='FILE'`：中间文件前缀——**我们熟悉的 `FILE:2025-07-12_00` 就是"前缀+冒号+时刻"命名**；
+- `prefix='FILE'`：中间文件前缀——**我们熟悉的 `FILE:2025-07-12_00` 就是“前缀+冒号+时刻”命名**；
 - `fg_name='FILE'`：metgrid 去哪里找气象场（前缀名，与 ungrib 的 prefix 对应）；可多个（多源混合时依次列出）；
 - `io_form_metgrid=2`：met_em 输出格式（netCDF 经典）。
 
-> 完整版 `namelist.wps`（含 `&ungrib` 的窗口项、`&metgrid` 的全部开关）见源码内 `namelist.wps.all_options` 与官方手册；本书按"正文讲常用、全量入附录"的原则处理（方案 §3.2）。
+> 完整版 `namelist.wps`（含 `&ungrib` 的窗口项、`&metgrid` 的全部开关）见源码内 `namelist.wps.all_options` 与官方手册；本书按“正文讲常用、全量入附录”的原则处理（方案 §3.2）。
 
 ---
 
@@ -204,7 +204,7 @@ geogrid 把**静态地理数据**插值到模拟网格上，产出 `geo_em.d0N.n
 | `geo_em.d01.nc` | 1.97 MB | 89×89（west_east/south_north）、21 类土地、16 类土壤、12 个月、`num_urb_params=132` |
 | `geo_em.d02.nc` | 2.28 MB | 111×111（同上维结构） |
 
-### 6.3.2 GEOGRID.TBL 语法：源数据选择的"双列映射"
+### 6.3.2 GEOGRID.TBL 语法：源数据选择的“双列映射”
 
 `GEOGRID.TBL.ARW` 是一个纯文本表，每个字段一段（以 `====` 分隔），核心是两类行：
 
@@ -224,8 +224,8 @@ name = HGT_M
         rel_path =       default:topo_gmted2010_30s/
 ```
 
-- **左侧是"源数据关键字"（source），右侧是行为**：`interp_option` 里是插值方法串（`average_gcell(4.0)` = 先按 4 km 网格平均，`four_pt` = 四点双线性，`average_4pt` = 四点平均……），`rel_path` 里是该源在 `geog_data_path` 下的子目录；
-- **`geog_data_res` 就填这些关键字**（如 `'default'`、`'30s'`、`'2m'`）。一个域填一组（用 `+` 可串联多源，如 `'30s+default'` 表示"先 30s，缺了再用 default 补"）；
+- **左侧是“源数据关键字”（source），右侧是行为**：`interp_option` 里是插值方法串（`average_gcell(4.0)` = 先按 4 km 网格平均，`four_pt` = 四点双线性，`average_4pt` = 四点平均……），`rel_path` 里是该源在 `geog_data_path` 下的子目录；
+- **`geog_data_res` 就填这些关键字**（如 `'default'`、`'30s'`、`'2m'`）。一个域填一组（用 `+` 可串联多源，如 `'30s+default'` 表示“先 30s，缺了再用 default 补”）；
 - `priority`：**同名字段多段并存**时（例如城市字段有多个数据源候选），优先级决定谁是主选、谁是后备；
 - `optional=yes`：该数据在 WPS_GEOG 里缺失时允许跳过（不致命）。
 
@@ -240,9 +240,9 @@ name = HGT_M
 | `FRC_URB2D`（城市占比，priority=1） | `urbfrac_nlcd2011/` |
 | `ALBEDO` | `albedo_modis/` |
 
-（后备源：`URB_PARAM` 的 priority=2 是 `gloucp2020_30s/`，`FRC_URB2D` 的 priority=2 是 `urbfrac_gaia2020_30s/`——第 17 章会回到这里讨论"用哪套城市数据"。）
+（后备源：`URB_PARAM` 的 priority=2 是 `gloucp2020_30s/`，`FRC_URB2D` 的 priority=2 是 `urbfrac_gaia2020_30s/`——第 17 章会回到这里讨论“用哪套城市数据”。）
 
-> **实用提示**：想知道某个关键字在你的数据盘上到底指向哪个目录，直接在 `GEOGRID.TBL.ARW` 里搜 `rel_path = <关键字>:` 即可——这就是"表驱动"的查证方法。
+> **实用提示**：想知道某个关键字在你的数据盘上到底指向哪个目录，直接在 `GEOGRID.TBL.ARW` 里搜 `rel_path = <关键字>:` 即可——这就是“表驱动”的查证方法。
 
 ---
 
@@ -252,7 +252,7 @@ name = HGT_M
 
 **职责**：读 GRIB 文件，按 Vtable 的字典翻译成 WPS 中间格式（`FILE:` 系列）——这一步**与网格无关**（输出保持源的原始网格：本例 ERA5 的 0.25° 经纬格）。
 
-**Vtable**：GRIB 变量的"字典页"。以本个例用的 `Vtable.ECMWF` 为例（实测全表精简）：
+**Vtable**：GRIB 变量的“字典页”。以本个例用的 `Vtable.ECMWF` 为例（实测全表精简）：
 
 | GRIB 参数 | 层类型 | 层范围 | metgrid 字段名 | 单位 | 说明 |
 |---|---|---|---|---|---|
@@ -268,7 +268,7 @@ name = HGT_M
 | 139/170/183/236 | 112（地下层） | 0-7 / 7-28 / 28-100 / 100-289 | ST000007/…/ST100289 | K | 四层土壤温度 |
 | 39/40/41/42 | 112 | 同上 | SM000007/…/SM100289 | fraction | 四层土壤湿度（体积含水） |
 
-看点：**左四列是"源方言"（GRIB），中间是"普通话"（metgrid 字段名）**；不同数据源（GFS/ECMWF/ERA5/…）只需要各自的一张 Vtable——源码内 60 余张正是这么来的。`Vtable.ECMWF` 的注释还专门说明"雪深单位换算在 `rrpr.F` 中做"——翻译官不仅翻单词，还负责单位归一。
+看点：**左四列是“源方言”（GRIB），中间是“普通话”（metgrid 字段名）**；不同数据源（GFS/ECMWF/ERA5/…）只需要各自的一张 Vtable——源码内 60 余张正是这么来的。`Vtable.ECMWF` 的注释还专门说明“雪深单位换算在 `rrpr.F` 中做”——翻译官不仅翻单词，还负责单位归一。
 
 **GRIBFILE 命名**：`link_grib.csh` 是配套脚本，把 GRIB 文件软链成 `GRIBFILE.AAA`、`GRIBFILE.AAB`……（三轮字母编号）。本个例两条：
 
@@ -277,9 +277,9 @@ GRIBFILE.AAA → ERA5202507.grib          （4.35 GB，气压层全套：z/q/r/t
 GRIBFILE.AAB → ERA5_surface.202507.grib （443 MB，地面场全套）
 ```
 
-> 源数据背景：这是共享目录里 liuyl17 下载好的**整月** ERA5（2025-07，00/06/12/18Z 四时次、区域 [65N,60E]–[0N,150E]），另有配套的 CDS 下载脚本可作模板。作者的开放共享使其成为"零下载"路线的理想驱动。
+> 源数据背景：这是共享目录里 liuyl17 下载好的**整月** ERA5（2025-07，00/06/12/18Z 四时次、区域 [65N,60E]–[0N,150E]），另有配套的 CDS 下载脚本可作模板。作者的开放共享使其成为“零下载”路线的理想驱动。
 
-### 6.4.2 中间文件格式与"200100 之谜"
+### 6.4.2 中间文件格式与“200100 之谜”
 
 **运行后先验证一件事**：`FILE:2025-07-12_00` 每个文件 65.6 MB、共 21 个。翻开源码 `ungrib/src/output.F` 与 `util/src/read_met_module.F`，中间文件（版本 5）的记录布局是：
 
@@ -292,7 +292,7 @@ GRIBFILE.AAB → ERA5_surface.202507.grib （443 MB，地面场全套）
 （以上四记录为一组，逐字段重复；Fortran 无格式顺序文件，每记录带长度标记）
 ```
 
-它是一摞"自我描述"的记录——字段名、单位、层、二维数据自包含（这也是为什么 metgrid 不需要知道源数据的任何"外部配置"）。
+它是一摞“自我描述”的记录——字段名、单位、层、二维数据自包含（这也是为什么 metgrid 不需要知道源数据的任何“外部配置”）。
 
 **谜题**：`METGRID.TBL.ARW` 里土壤字段的映射写成 `fill_lev = 7 : ST000007(200100)`——括号里的 200100 是什么？它不是土壤深度。答案在源码两处：
 
@@ -303,29 +303,29 @@ GRIBFILE.AAB → ERA5_surface.202507.grib （443 MB，地面场全套）
 level = 200000 + iprty   →   200000 + 100 = 200100
 ```
 
-也就是说：**在中间文件里，所有"非气压类"字段（地面场、2 m/10 m 场、土壤层）共享一个约定层号 200100**——它们靠**字段名**区分（ST000007 与 SM000007 各有其名），不靠层号。于是 METGRID.TBL 写 `ST000007(200100)` 的含义是："取名为 ST000007 的字段、其（唯一）层号 200100 的数据"。
+也就是说：**在中间文件里，所有“非气压类”字段（地面场、2 m/10 m 场、土壤层）共享一个约定层号 200100**——它们靠**字段名**区分（ST000007 与 SM000007 各有其名），不靠层号。于是 METGRID.TBL 写 `ST000007(200100)` 的含义是：“取名为 ST000007 的字段、其（唯一）层号 200100 的数据”。
 
-（补充细节：`output.F` 还会**跳过 (200100, 200200) 开区间内的层号**——那是"更低优先级的重复来源"的标记区间；三行源码串起来，谜题闭环。这类问题没有捷径，只能读源码——但它只读一次终身受益。）
+（补充细节：`output.F` 还会**跳过 (200100, 200200) 开区间内的层号**——那是“更低优先级的重复来源”的标记区间；三行源码串起来，谜题闭环。这类问题没有捷径，只能读源码——但它只读一次终身受益。）
 
 ### 6.4.3 深水区：ungrib 的时间窗口机制
 
-初次运行 ungrib 的人常问两件事："我的 GRIB 是整月的，为什么只得到窗口内的 21 个文件？"以及"我明明没写 `&ungrib` 的 start_date，它怎么知道窗口？"
+初次运行 ungrib 的人常问两件事：“我的 GRIB 是整月的，为什么只得到窗口内的 21 个文件？”以及“我明明没写 `&ungrib` 的 start_date，它怎么知道窗口？”
 
 源码答案（`ungrib/src/read_namelist.F`）：
 
 - ungrib **直接读取 `&share`** 的 `start_date`/`end_date`——**只取第 1 个域的值**（`start_date(1)`，对子域的值无视）；
-- `start_date` 与"多变量写法"（start_year/start_month/…）并存时，**`start_date` 优先**；
+- `start_date` 与“多变量写法”（start_year/start_month/…）并存时，**`start_date` 优先**；
 - 随后做校验：`interval_seconds` 必须大于 0 且**整除** (end−start)；时间步数 `ntimes = (end−start)/interval + 1`。
 
 然后是执行侧的加速机制（`ungrib/src/ungrib.F`）：主循环按时间顺序处理 GRIB 记录，当遇到 `hdate > hend` 时**直接退出**（不读完文件）。两个机制叠加，得到与实测完全一致的行为：
 
 - 4.35 GB 的整月气压层文件，**只扫描到 7 月 17 日 00Z 即停**（约读了前 17 天）；
 - 只写出窗口内 21 个时刻的 `FILE:`；
-- 全程 42 秒（其中还包括扫描跳过前 11 天的记录）——这就是为什么"整月文件"并不像想象中那样昂贵。
+- 全程 42 秒（其中还包括扫描跳过前 11 天的记录）——这就是为什么“整月文件”并不像想象中那样昂贵。
 
 > 反向提醒：如果你的驱动数据是多时段/乱序拼接的 GRIB（非按时间排序），提前退出可能提前发生、丢数据——这种数据请先排序或用 `&ungrib` 的显式窗口项兜底（完整选项见附录）。
 
-### 6.4.4 深水区：DATINT——不是错误的"错误信息"
+### 6.4.4 深水区：DATINT——不是错误的“错误信息”
 
 ungrib 收尾时，日志里必打印一行为：
 
@@ -333,7 +333,7 @@ ungrib 收尾时，日志里必打印一行为：
 Subroutine DATINT: Interpolating 3-d files to fill in any missing data...
 ```
 
-它出自 `ungrib/src/datint.F`：ungrib 在写完所有可用时次后，会**逐一遍历 `ntimes` 个"应有"时刻**，把缺失的时刻用前后相邻时刻**在时间上线性插值**补齐（"Looking for data at time … / Found file: … / Interpolating …"）。本个例 21 个时刻全部存在，DATINT 实际上"无事可做"，但那行提示仍会打印——**它是流程通告，不是错误**。真正说明问题的，是你看到它后面跟着 "Interpolating to fill in … at level …" 的真实插值动作：说明你的 GRIB 缺时次，ungrib 在替你修。是否允许这种"自动修复"，取决于科研严谨性要求（有些研究严格要求驱动时刻与窗口完全对齐）。
+它出自 `ungrib/src/datint.F`：ungrib 在写完所有可用时次后，会**逐一遍历 `ntimes` 个“应有”时刻**，把缺失的时刻用前后相邻时刻**在时间上线性插值**补齐（“Looking for data at time … / Found file: … / Interpolating …”）。本个例 21 个时刻全部存在，DATINT 实际上“无事可做”，但那行提示仍会打印——**它是流程通告，不是错误**。真正说明问题的，是你看到它后面跟着 “Interpolating to fill in … at level …” 的真实插值动作：说明你的 GRIB 缺时次，ungrib 在替你修。是否允许这种“自动修复”，取决于科研严谨性要求（有些研究严格要求驱动时刻与窗口完全对齐）。
 
 ### 6.4.5 ungrib.log 阅读指南
 
@@ -368,8 +368,8 @@ name=ST                      ← 目标字段（met_em 中出现的名字）
 
 三个要点：
 
-1. **`fill_lev = <目标层> : <源字段>(<源层>)`** 是核心语法：括号里是**源字段在中间文件中的层号**（源码 `interp_option_module.F` 的 `get_fill_src_level`：*"level in source field must be an integer, enclosed in parentheses"*）；对非气压类字段就是 §6.4.2 的 200100 约定。
-2. **IF/ELSE IF 分支**：ST/SM/SW 等派生字段为不同驱动数据集准备了多套层映射（GFS 的 0-10/10-40/40-100/100-200 cm、ECMWF 的 0-7/7-28/28-100/100-289 cm 等）。**metgrid 会挑"源字段存在"的那一支**——本个例走 ECMWF 支（目标层 7/28/100/289）。
+1. **`fill_lev = <目标层> : <源字段>(<源层>)`** 是核心语法：括号里是**源字段在中间文件中的层号**（源码 `interp_option_module.F` 的 `get_fill_src_level`：*“level in source field must be an integer, enclosed in parentheses”*）；对非气压类字段就是 §6.4.2 的 200100 约定。
+2. **IF/ELSE IF 分支**：ST/SM/SW 等派生字段为不同驱动数据集准备了多套层映射（GFS 的 0-10/10-40/40-100/100-200 cm、ECMWF 的 0-7/7-28/28-100/100-289 cm 等）。**metgrid 会挑“源字段存在”的那一支**——本个例走 ECMWF 支（目标层 7/28/100/289）。
 3. 其余关键字：`interp_option`（水平插值方法与优先级）、`mask`（掩膜，如仅陆地）、`flag_in_output`（输出标志位）、`priority`（同名多段时的选序）。
 
 ### 6.5.3 met_em 结构实测解读
@@ -388,7 +388,7 @@ variables: Times ; PRES(32层) ; GHT(32层) ; TT ; UU ; VV ; RH ; 地面族…�
     SM100289: description = "Soil moisture of 100-289 cm ground layer" ;
 ```
 
-对照记忆地图：**3D 云图 = 32 层等压面（PRES/GHT/TT/UU/VV/RH）**；**地面族 = PSFC/PMSL/T2/TH2/Q2/U10/V10/SKINTEMP/SNOW…**；**土壤族 = ST/SM/SW（各 4 层）**。所有字段名都能在 `METGRID.TBL.ARW` 中找到对应段——"表驱动"从源头到成品一路可视。
+对照记忆地图：**3D 云图 = 32 层等压面（PRES/GHT/TT/UU/VV/RH）**；**地面族 = PSFC/PMSL/T2/TH2/Q2/U10/V10/SKINTEMP/SNOW…**；**土壤族 = ST/SM/SW（各 4 层）**。所有字段名都能在 `METGRID.TBL.ARW` 中找到对应段——“表驱动”从源头到成品一路可视。
 
 > 交接时刻：到这儿，WPS 的任务完成。42 个 met_em 文件将被移交 `real.exe`（第 7 章）——真实运行中通常把它们软链（或复制）到 WRF 运行目录。
 
@@ -462,8 +462,67 @@ ln -sf .../ERA5_2025/ERA5_surface.202507.grib ./GRIBFILE.AAB
 
 ## 6.8 延伸阅读
 
-- 官方《WPS User Guide》——`namelist.wps` 全量项与各 TBL 的权威说明（本章是对它的"源码级注解版"）；
-- `WPSv4.7.0/ungrib/Variable_Tables/README`——Vtable 家族导览（含"如何为新数据集写 Vtable"）；
+- 官方《WPS User Guide》——`namelist.wps` 全量项与各 TBL 的权威说明（本章是对它的“源码级注解版”）；
+- `WPSv4.7.0/ungrib/Variable_Tables/README`——Vtable 家族导览（含“如何为新数据集写 Vtable”）；
 - `WPSv4.7.0/geogrid/GEOGRID.TBL.ARW`——逐字段读一遍，你的城市/陆面数据意识会立刻升级（第 16/17 章大量回访）；
-- 源码内 `namelist.wps.all_options`——把本个例的"最简四节"扩展到全量配置的对照表；
+- 源码内 `namelist.wps.all_options`——把本个例的“最简四节”扩展到全量配置的对照表；
 - 第 7 章——met_em 进入 real.exe 的下一站；第 17 章——城市参数族（URB_PARAM/FRC_URB2D）在 BEP/BEM 中的用法；第 19 章——本个例的完整科学分析。
+
+---
+
+## 6.9 补充专栏【模块依赖树】：WPS 三程序的源码文件树
+
+> 与 ch03 §3.8 同体例。WPS 源码（`source/WPSv4.7.0/`）按程序分三个目录，每目录一个 `src/`。三程序**共享同一套坐标/投影代码**（`llxy_module.F` 在三个目录各有一份拷贝——WPS 的“复制式共享”，与 WRF 的 `phys/physics_mmm` 集中式共享形成对照）。全部为本地实测清单（.F 为 C 预处理后 Fortran，.c 为 IO 接口）。
+
+```text
+geogrid/src/
+├─ geogrid.F                     主程序：读 namelist.wps &geogrid → 逐域逐瓦片
+├─ process_tile_module.F         瓦片级主流程（插值循环、TBL 条目调度）
+├─ proc_point_module.F           点数据源（如 NUDAPT 类站点数据）处理
+├─ interp_module.F               四/十六点插值、平均、邻近等插值算子实现
+├─ source_data_module.F          源数据集（静态场目录/文件索引）读取
+├─ gridinfo_module.F             域信息（投影、格点坐标）
+├─ llxy_module.F                 经纬度 ↔ 投影坐标（Mercator/Lambert/Polar/Cassini/lat-lon）
+├─ module_map_utils.F / module_stringutil.F / module_debug.F   公共工具
+├─ smooth_module.F               平滑（smooth_option）
+├─ queue/bitarray/hash/list/constants/misc_definitions/parallel/output   支撑模块
+└─ read_geogrid.c / write_geogrid.c   C 语言 IO 接口（供 wrf-python 的 wrf.getvar 侧复用）
+
+ungrib/src/
+├─ ungrib.F                      主程序：Vtable → 逐 GRIB 时次解码 → FILE:hhhh
+├─ rd_grib1.F / rd_grib2.F       GRIB1/GRIB2 解码（gribcode.F 为码表支撑）
+├─ parse_table.F                 Vtable 解析（第 6.3 节的逐列对应即它的行为）
+├─ new_storage.F / output.F      中间存储与 FILE: 写出
+├─ datint.F / gridinfo.F / read_namelist.F / module_datarray.F …
+└─ g1print.F / g2print.F         独立小工具：打印 GRIB 内容（排错神器，util/ 里另有打包版）
+
+metgrid/src/
+├─ metgrid.F                     主程序：水平插值 FILE:hhhh → met_em
+├─ input_module.F                读 wrfinput 类域信息 + FILE 层
+├─ met_data_module.F             met 数据大数组
+├─ interp_module.F / interp_option_module.F   水平插值算子与 METGRID.TBL 的 interp_option 调度
+├─ module_date_pack.F / module_mergesort.F / minheap_module.F / mpas_mesh.F
+│                                （mpas_mesh.F：MPAS 网格支持——WPS 现代化的指纹）
+└─ bitarray/constants/datatype/gridinfo/llxy/map_utils/…   与 geogrid 同款支撑层
+```
+
+**读树三则**：
+
+1. **三程序的同名模块是“三份拷贝”**（llxy/map_utils/debug/…）——给 WPS 加自定义插值或投影时，改动要同步三处（或只动你用的那个程序）；这与 WRF `phys/physics_mmm/` 的集中共享是两种时代的两种策略；
+2. **geogrid 的 C 文件（read/write_geogrid.c）是跨语言接口**——wrf-python、自研脚本读 geo_em 时走的同一入口；
+3. **排错路径**：namelist 解析问题查 `read_namelist.F`（ungrib）/`gridinfo_module.F`（geogrid/metgrid），插值结果异常先看 `interp_module.F` 的算子名与 METGRID.TBL/GEOGRID.TBL 的 `interp_option` 字符串是否拼对。
+
+## 6.10 补充专栏【科研改造案例库】：WPS 层两案
+
+### 案例一　城市数据集接入 GEOGRID.TBL（ch17 的数据前传）
+
+- **课题**：城市冠层模拟需要的形态参数场（建筑高度、Plan/Frontal area index、人为热）——NUDAPT（美国）、y2010/y2050_urb、ahe 数据集；
+- **改造方式**（情况③，配置级）：不改 Fortran，改 **`geogrid/GEOGRID.TBL.ARW`**——为 `URB_PARAM`（132 维栈式输出）、`FRC_URB2D`、`MH_URB2D` 等新条目指定 `interp_option/source_name/dest_name`，并把数据集放进 `geog_data_path`。WRF 侧 `Registry.EM_COMMON` 的对应 state 行与 ch17 表 17.x 一一对应；
+- **与本书个例的关系**：ch19 实测兰州 `WPS_GEOG` 只有 NUDAPT44（美国覆盖）→ URB_PARAM 全 0 → 触发“无本地参数”的三重约束链——**改造 WPS 数据接口解决的是“模式能吃”，改造数据集本身解决的是“有没有饭”**；
+- **教学点**：WPS 层改造是投入产出比最高的入口——不动一行 Fortran 就能把新数据集接进模式。
+
+### 案例二　WPS #281：为 4.8.0 的地形拖曳提供新地形场
+
+- **课题**：4.8.0 的 `gwd_opt=1` 更新与新增的 kim_tofd（尺度感知地形形状拖曳）需要 WPS 提供额外地形统计场（var2 类字段）——**动力方案的新物理倒逼前处理升级**的实例（4.8.0 release notes 两处明确标注 *Requires the use of ... fields from WPS code updates ([wrf-model/WPS#281])*）；
+- **改造方式**（情况③）：WPS 侧 PR #281 增补 GEOGRID.TBL 与静态场产出；本教材基线（WPS 4.7.0）不含，故 ch14 侧记中明确“不启用这两个选项则不受影响”；
+- **教学点**：跨包依赖（WRF↔WPS）是版本管理最容易翻车的地方；升级 WRF 物理前先读 release notes 里 “Requires ...” 句式。

@@ -568,3 +568,21 @@
 - 诚实结论：无本地城市参数（FRC 均一 0.9、形态取通用表值、AH 关闭）时，城市冠层方案对 2 m 温度的净效应**小量级（域均 |Δ|<0.3 K）、空间非均匀、日最高几乎不变**；夜间主导因子（人为热）未入场 → 直接指向论文 2 的参数场路线
 - 三档统一 class 1 + 三对单变量对照；补丁物理含义与代价写入 19.5.4；教材亦记录"约束驱动设计"三重约束（PBL 兼容 / 面层兼容 / ZLVL vs 城市形态）
 - 正文 408 行 + 4 图；`_fix_quotes.py` 全角化 84 处（余 16 在代码块内）
+
+## ch20 段（2026-10-11 下午，改造三级实战：全链实测）
+### 构建（干净重建 v3 = 作业 439963，cpu44，12:28→13:07）
+- v2 失败根因两处（教材事故⑤⑥）：容器缺 m4 → `frame/md_calls.inc` 0 字节 → `module_io.o` 语法错无 wrf.exe（官方回退 `cp arch/md_calls.inc frame/`）；只改 Registry.EM_COMMON 不触发 `tools/registry`（`REGISTRY = Registry` 拼装文件才是规则先决条件）→ 处置 `touch Registry/Registry.EM`
+- 五二进制全部有效：base 720s `9693677383da45cb95d1a4b06810665d`；L1 697s `4cf82c53ec89f732c454d86630df852c`（六点自检全中：state_struct `t2_peak`、allocs_1 `in_use_for_config`、三件生成物 md5 与基线逐位同）；L2a 67s `b967eb5c…` / L2b 58s `74da264f…`（`module_bl_mynnedmf.o` md5 与首轮独立构建逐位同——.o 可复现、exe 不可）；L3 706s `4fe7e09e…`（albrof_2d=1、bem_switch=8）
+### 运行（runall = 作业 439976，cpu16，13:07→13:59，np=64）
+- **六跑全部 rc=0**：L1a 610s / L1b 610s / L2a 607s / L2b 610s（A 组 24h，输入 ch19 sf0）；L3off 322s / L3on 322s（B 组 12h，注入输入）；L1b `SUCCESS COMPLETE WRF` 实证（重建前 SIGSEGV 通知为旧调试任务残留）
+- 输入指纹：A 组 wrfinput_d01=73e20895…/d02=179a2275…/wrfbdy=fd0714be…；B 组 1bd0b65b…/046bdcb5…/27c2f960…
+### 抽取（事故⑦：容器内 ncks 静默失败 → stderr 落盘定位 → 两步修复）
+- ① 容器内 ncks 全 FAIL（错误被 /dev/null 吞）→ 处置=独立容器外作业（extract2 440034）+ stderr 落盘；② 容器外仍失败：`libnco-4.7.5.so not found`（登录节点系统自带 nco 侥幸成功，计算节点无）→ 修复=所有 ncks 加 `env LD_LIBRARY_PATH=lz_case/lib`；③ L3 2d 再失败：`TS_URB2D not in file`——**Registry DataName 是 `TS_URB`**（TS_URB2D 是 Registry 变量名）；h 位补丁本身有效（`rhd=(interp_fcnm)u=(copy_fcnm)` 合法、ALBROF_2D 成功入 wrfout）
+- 终版 stage 24 文件 + `ch20_stage_all_v2.tar.gz` 142.8 MB → 本地 `workspace/data/ch20/stage/`
+### 诊断（workspace/scripts/ch20_diagnose.py；日志 workspace/logs/ch20_diagnose.log；3 图）
+- **L1**：单调性负步 0/295704；gap(PEAK−逐时max) min 0.0000/max 4.5949 K/域均 0.0599 K、违例 0/308025；**L1a↔L1b 十二变量 max|Δ|=0（位级非扰动铁证）**
+- **L2**：域均 PBLH 日最大 1199.4/1635.1/1902.4 m（0.5/1.25/2.5，单调）、时均 474.9/711.9/904.0 m；逐点违例 0.83%/3.10%（min −2527.6/−1592.1 m，源于稳定层混合与 ±200/350 m 约束——"改一行要读全公式"实证）；ΔT2 域均 ±0.1 K 内（时均 −0.000/+0.012 K）
+- **L3**：注入场东 44 格 0.8/西 60 格 0.2、on/off 输入一致（max|Δ|=0）；`TS_URB` 开−关东组时均 **−2.846 K**（峰值 −4.114；正午 13 LT 域内 min **−6.67 K**）、西组 −0.089 K（表值对照≈0）；SWDOWN 885 W/m²、RAINNC 19.7 mm、T2 11.4 K、TSK 15.2 K 的差=云-降水-环流非线性反馈（判据二改为三级"应当不变"检验：注入场位级/对照组零效应/RAINC 位级）
+### 章节交付
+- `doc\ch20_modifying_wrf.md`：正文 + 事故链七条表 + §20.7.1 全书改造案例总索引（27 案）；9 处待填全部回填；图 3 张（ch20_L1_diag/L2_pblh/L3_albedo）；`_fix_quotes.py` 两轮
+- 全书补充（同日）：ch01/ch02 新交付；ch03–ch19 补三类专栏（依赖树 10 棵 + 案例库）；ch20 §20.7.1 总索引

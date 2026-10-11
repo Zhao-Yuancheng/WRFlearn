@@ -711,3 +711,34 @@ cd test/em_b_wave     && ln -sf ../../main/wrf.exe wrf.exe && ln -sf ../../main/
 - **本书**：ch05（test/em 全表第一版与编译机制）、ch10（η 坐标与基态分解，本章 18.4.3 的前提）、ch16（陆面能量收支，与 LES 面通量口径呼应）、ch19（把理想实验与真实个例的对照方法带回个例）。
 
 ---
+
+## 18.8 补充专栏【科研改造案例库】：理想算例层两案
+
+### 案例一　LES 灰区的“细胞扰动法”（Muñoz-Esparza 系）：理想算例如何孵化新物理
+
+- **课题**：LES-中尺度灰区（网格 ~ 数百米）里边界层湍流的“欠激发”问题；
+- **改造内容**（情况③，已上游化）：Muñoz-Esparza et al.（2014 JAS / 2015 MWR）提出**细胞扰动法**（cell perturbation，在近地层按尺度相关尺寸划分“扰动细胞”施加随机温度扰动），随 em_les 算例进入 WRF——**先在理想算例上立项、验证，再推广到真实个例**的完整路径；`em_les` 的 namelist 中的扰动选项即其遗产（本书 18.5 的 les 实跑是其验收环境）；
+- **教学点**：**“新物理先在理想算例上养”**——em_les 之于 PBL 改造，正如 em_quarter_ss 之于微物理（Weisman & Klemp 探空），ch20 的三级实战也可以先搬进理想环境做冒烟；
+- **与本书流程的关系**：ch20 若把 L2（delt_thv）先在 em_les 上跑一轮 30 分钟对照，就能提前一天锁定日循环响应方向——这是理想算例作为“改造试验田”的通用价值。
+
+### 案例二　SCM 单柱路线（em_scm_xy）：把 PBL/云方案放进“试管”
+
+- **课题**：单列模式（Single Column Model）验证——用强迫场驱动一根气柱，隔离平流，纯测物理；
+- **改造内容**（情况③）：`test/em_scm_xy` + SCM 相关驱动（读强迫/再分析的单点时序）——很多 PBL/浅对流论文的对照实验表（如 Shin-Hong、MYNN 系列技术报告）都含 SCM 段；
+- **教学点**：**改造验证的三级跳**：单柱（试管）→ 理想算例（烧杯）→ 真实个例（池塘）——ch18 的双钥匙机制让三级跳共用同一套二进制，切换成本只在 namelist 与输入装配。
+
+## 18.9 补充专栏【模块依赖树】：理想算例初始化链
+
+```text
+./compile em_<case>                    顶层 Makefile：IDEAL_CASE=<case> 宏（9 个算例共用 =ideal）
+├─ main/ideal_em.F                     PROGRAM ideal（串行）→ 写 wrfinput/（specified 时）wrfbdy
+├─ dyn_em/module_initialize_ideal.F    12 处 SELECT CASE(realcase) 分发（ch18 §18.4）：
+│   ├─ levels 三策略（指数拉伸/eta_levels/均匀）
+│   ├─ nl_set_map_proj(1,0) + msf≡1    无 WPS 之谜的机制答案
+│   ├─ get_sounding（干/湿两遍）/ read_input_jet（二进制探空）
+│   └─ 暖泡/冷泡/随机扰动注入
+├─ share/set_timekeeping.F             run_* 优先于 end_*（18.5 的 namelist 陷阱）
+├─ Registry：ideal_case 包 → module_state_description.F 常量 realcase=0…les=9
+│   （同一二进制多算例的"运行期开关"——双钥匙的运行侧）
+└─ test/<case>/namelist.input          每算例的真正差异所在（装配运行目录）
+```

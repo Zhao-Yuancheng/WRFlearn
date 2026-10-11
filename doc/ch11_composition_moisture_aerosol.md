@@ -861,3 +861,58 @@ cfc12 = 0.538e-9                                   !  538 pptv
 ---
 
 *本章交付信息：书页扫描直读（印刷页 6–28 共 14 页逐页核对公式编号与常数）、源码锚点 20 余处、轻轨实验四组（闭合/六实现对照/虚温密度/实测复现）、三张自算图 + 六张 PPT 原图。所有“实测值”均出自 `workspace/scripts/ch11_experiment.py` 的一次运行输出。*
+
+---
+
+## 11.10 补充专栏【模块依赖树】：常数—成分—气溶胶的文件树
+
+> 本章的源码内容天然分三股：**常数**（`module_model_constants`，全模式引用）、**成分/温室气体输入**（ghg/o3）、**气溶胶**（qnwfa/qnifa 状态 + 光学模块）。
+
+```text
+【常数】share/module_model_constants.F
+        R_d/R_v/ε/c_p/c_pv/L_v/L_s/L_f、p1000mb、κ、g、stefan-boltzmann…
+        （第 12 章辐射、第 13 章微物理、第 14 章 MYNN 的 kind_phys 常数模块
+          phys/MYNN-EDMF/…common 另有一套独立定义——"常数也有平行世界"）
+【成分输入】share/module_input_chem? → 实际主链：
+        Registry（ghg_input/o3input/co2_flag 等 rconfig）
+        ├─ phys/module_radiation_driver.F → ghg 档案读取（CAMtr_volume_mixing_ratio*
+        │    4.3.1 起新增 CMIP6 SSP 档案）→ module_ra_cam_support.F（RRTMG 的
+        │    CO2/O3/N2O/CH4/CFC 浓度剖面）
+        └─ o3input：CAM 臭氧档案（ozone.lat/plev） vs RRTMG 内置廓线（o3input=0）
+【气溶胶】Registry state：qnwfa2d/qnwfa3d、qnifa2d/qnifa3d（ice-friendly/water-friendly，
+        mp_physics==28 专属，in_use_for_config 判定——ch04 §4.4 实测样板）
+        ├─ phys/module_ra_aerosol.F        气溶胶光学（ra_aerosol_type 选择）
+        └─ phys/module_mp_thompson.F       aerosol-aware 路径（Act 的 CCN 活化、
+             dust_emis 的冰核源；Thompson 的调用壳是微物理驱动器
+             module_microphysics_driver.F 的 CASE 分支——ch13 §13.2）
+```
+
+**读树三则**：
+
+1. **“常数表”是最值得精读的 300 行**：本章 11.x 的常数对照（书附录 C vs 源码）完成后，全书后续章引用常数不再重复验证；同时记住 MYNN 子模块自带一套 `kind_phys` 常数——**跨方案比较常数时先查它的定义域**；
+2. **气溶胶状态变量是“条件存在”的**：`qnwfa/qnifa` 只在 mp=28 时分配（`in_use_for_config`）——这就是 ch04 讲的 package 机制的实感：变量在，物理不选它就等于不存在；
+3. **成分档案（CAMtr 文本文件）是纯输入**：改温室气体情景（SSP1-2.6 等）不需要动代码，换 `CAMtr_volume_mixing_ratio_RCP/SSP` 文件即可——“数据即改造”的又一例。
+
+## 11.11 补充专栏【科研改造案例库】：成分与气溶胶三案
+
+### 案例一　Thompson-Eidhammer 气溶胶感知微物理（3.8/4.0 一线的经典改造，本书 mp=8 的“隐藏功能”）
+
+- **课题**：气溶胶-云相互作用（ACI）：用**水溶性**（qnwfa）与**冰溶性**（qnifa）气溶胶浓度预报 CCN/IN 活化，替代纯诊断的活化方案（Thompson & Eidhammer 2014 JAS）；
+- **改造对象与原代码 vs 修改后**（情况①：全部在官方源码内）：
+  - Registry 新增 4 个 state（qnwfa2d/3d、qnifa2d/3d）+ 输入档案（`qr_acr_qg…` 类查表文件）；
+  - `module_mp_thompson.F` 的核化分支由“固定 profile 诊断 IN”改为“读 qnifa 活化”；`dust_emis=1`（4.0）再把扬尘接成冰核源（GOCART 式方案内嵌）；
+  - 4.8.0 又把“人为气溶胶混合”推进 PBL（MYNN 的 bl_mynn_mixaerosols，见 ch02 §2.3.1 #7）——**气溶胶从辐射通道（被动光学）一路打进云微物理（主动核化）和边界层（湍流混合）三个家族**；
+- **教学点**：这是一条“跨 4 个家族”的改造长链（Registry→辐射→微物理→PBL），是 ch20 之后你自己立项时最现实的复杂度参照。
+
+### 案例二　CESM 气溶胶-积云交互（aercu_opt，4.0）
+
+- **课题**：气候尺度上的气溶胶间接效应（MSKF 积云 + 专用 Morrison 方案 mp=40 + CESM RCP4.5 气溶胶气候场）；
+- **改造内容**（4.0 notes）：新增 `aercu_opt`（0/1/2：关 / 仅 MSKF / MSKF+Morrison）与 30 层 10 类气溶胶输入文件；`aercu_fct` 调节浓度；
+- **教学点**：与案例一对比——**同一科学问题（ACI）在“云分辨率”与“积云参数化”两端各有一套实现**；选哪条取决于你的格距与科学问题，而不是方案先进性。
+
+### 案例三　温室气体的“数据化”演进（4.3.1–4.3.2）
+
+- **课题**：辐射强迫的情景模拟（RCP→CMIP6 SSP）；
+- **改造内容**：4.3.2 为 RRTMG 短波加入**时变温室气体**（此前长波已支持），4.3.1 新增 CMIP6 SSP 档案（input4MIPs v1.2.x）——代码侧只是“读档案的时间插值”扩展，**科学能力完全由档案数据定义**；
+- **与本书的关系**：ch12 精读时实测的 `ghg_input=1`/`o3input=2` 默认值（隐性输入）在这条演进线上有了完整语境；
+- **教学点**：当你的改造“只是换数据”时，**把数据接口做对（单位、时间插值、缺测）比写代码更费力**——ch19 的 ERA5 对台勘误是同一教训。

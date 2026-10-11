@@ -406,4 +406,26 @@
 - 已交付初稿：`doc\ch20_modifying_wrf.md`（452 行，含 L1/L2/L3 全节与“事故链六条”表；**9 处【待填】**待实跑数据）；`workspace/scripts/ch20_diagnose.py`（L1 自检三图 / L2 三档 PBLH / L3 开关×东西城区；py_compile 通过）
 - 下一步：轮询 439963 → 核对 5 个二进制 md5 → 提交 ch20_runall → 拉 `ch20_stage_all.tar.gz` → 解到 `workspace/data/ch20/stage` → 跑 ch20_diagnose（3 图）→ 填 9 处【待填】→ `_fix_quotes.py` → 四件套（verify_log/chapter_map/progress/notes）+ 复核清单第 15 条
 - Open question：若 L1a↔L1b 出现非零位差（编译器重排的可能性）→ 改为“统计等价”表述，如实记录
-- **2026-10-11 13:07 更新（重建成功 + 运行已提交）**：v3（439963）五个二进制全部有效（base 720 s / `9693677383da45cb95d1a4b06810665d`；L1 697 s / `4cf82c53ec89f732c454d86630df852c`；L2a 67 s / `b967eb5c60ddbbc7c52627bdce5695c4`；L2b 58 s / `74da264f9a47c16b0f5ae0076ab84744`；L3 706 s / `4fe7e09e34822bde5e0495ddab71e603`）；L1 六点自检全中（`t2_peak=1`）、L3 生成物抽查（`albrof_2d=1`、`bem_switch=8`）；L2 的 `.o` md5 与首轮独立构建逐位相同。运行作业 **439976**（ch20_runall，13:07 起，cpu16，np=64，ulimit -s=unlimited）：A 组 4×24 h（输入 `ch19_exp/sf0`）+ B 组 2×12 h（输入注入场）+ ncks 抽取 → `ch20_stage_all.tar.gz`。章节实测已回填 2 处（构建/自检数据），仍余 7 处【待填】（取决于运行结果）。后台等待：`05edb339`
+- **2026-10-11 14:4x 更新（新指令 + ch01/ch02 交付 + ch03–05 补充）**：
+  - **用户新指令**：①完成 ch01/ch02；②ch03–20 通篇检查并补三类内容（科研改造案例库：课题→改哪文件→原码/改码，小改加注释/大改①公开代码②伪代码③思路；核心原理与求解器代码详解；模块依赖树：文件级+各节点函数）；③完成后检验 439976。
+  - **ch01 已交付** `doc\ch01_from_atmosphere_to_models.md`：书印刷页 1–5 直读（表 1.1/1.2 全表、光解 (1.2.1)–(1.2.3)、三阶段、氮氩之谜）+ PPT1 讲考点三件 + 学科分支↔WRF 模块对照表 + WRF 家族/根目录树 + **三类专栏体例约定（§1.6.2）**。
+  - **ch02 已交付** `doc\ch02_wrf_evolution.md`：官方 release notes 逐版抓取（4.0=2018-06-08 … 4.8.0=2026-06-08，含 PR 号）+ 本地源码指纹表 14 条（physics_mmm 八文件、MYNN-EDMF/SFC 子模块、module_diag_cl、ltng 家族、wind_fitch/mav、registry.noahmp、URBPARM_LCZ、cmake、TEMPO 未随包等）。4.5/4.6.0 精确日期据时间线推断已标注。
+  - **ch03–05 已补**：ch03 §3.8 驱动层依赖树（module_wrf_top wrf_init/run/finalize 行号、mediation_integrate 六 med_*、solve_interface=share/solve_interface.F、module_integrate.F 递归 integrate line 8、WRFPLUS tl/ad 变体）+ §3.9 三案（WRFPLUS/Hydro/ch20 选位）；ch04 §4.8 三案（**CLWRF 上游化案：Registry.EM_COMMON line 1759 起 ~24 state rh3 + phys/module_diag_cl.F clwrf_output_calc line 14 哑元表全录**、CORDEX cdxwrf 本 tarball 未检索到已标待核、registry.noahmp 分治）+ §4.9 tools/registry 生成器分工树；ch05 §5.8 三案（MMM 共享库含 Makefile.mpas 证据、CMake、子模块工作流两路线）+ §5.9 编译依赖树（标陷阱⑤⑥位置）。
+  - 集群：SSH 连续超时/后台任务丢失（登录节点 NFS 慢 + 连接重置）；439976 最后确认 41 min RUNNING（L1a 610s SUCCESS、wrfout 558+817MB 正常）；**抽取作业 ch20_extract2 已推送未确认提交**——下一步恢复连接后先查 runall DONE→ sbatch ch20_extract2_outer.sh → SUMMARY_extract2/tar v2。
+  - 下一步：ch06–09 补充 → ch10–13 → ch14–17 → ch18–20 → ch20 数据收尾 → 终验 439976 → 四件套。
+- **2026-10-11 15:0x 更新（ch03–20 补充全落盘 + 439976 六跑全成 + 抽取已提交）**：
+  - **补充全部完成**：ch03 §3.8/3.9、ch04 §4.8/4.9、ch05 §5.8/5.9、ch06 §6.9/6.10、ch07 §7.8/7.9、ch08 §8.9、ch09 §9.9/9.10、ch10 §10.12/10.13、ch11 §11.10/11.11、ch12 §12.10/12.11、ch13 §13.10/13.11、ch14 §14.10/14.11、ch15 §15.10/15.11、ch16 §16.10/16.11、ch17 §17.9、ch18 §18.8/18.9、ch19 §19.8、**ch20 §20.7.1 全书案例总索引表（27 案）**。全角引号已跑（ch03–ch20 全部）。文件名核验：bl_ 19 文件、cu_ 16 文件、mp_ 32 文件、sf_ 39 文件、ra_ rrtmg 三件套(lw/lwf/lwk,sw/swf/swk)、cu_driver/pbl_driver/solve_interface=share/ 等。
+  - **439976 六跑全部 rc=0**：L1a 610s / L1b 610s（SUCCESS COMPLETE 实证——重建前的 SIGSEGV 通知为陈旧残留）/ L2a 607s / L2b 610s / L3off 322s / L3on 322s；作业 13:59 DONE（run 内 ncks 抽取如预期 FAIL=事故⑦）。
+  - **抽取作业 440034**（ch20_extract2，容器外 ncks）已提交 PENDING；完成后 tar=ch20_stage_all_v2.tar.gz → 拉回 → ch20_diagnose 出 3 图 → 回填 7 处待填。
+  - 下一步：等 440034 → 拉 tar → 诊断出图 → 回填 → 四件套（verify_log/chapter_map/progress/notes + 复核清单第 15 条）。
+- **2026-10-11 15:3x 收官（ch20 全链闭环 + 全书补充完成）**：
+  - 抽取修复两步：① `libnco-4.7.5.so not found`（计算节点无系统 nco，登录节点有——裸跑侥幸成功的假象）→ 所有 ncks 加 `env LD_LIBRARY_PATH=lz_case/lib`；② L3 2d 仍失败 → **Registry DataName ≠ 变量名**（TS_URB2D 的输出名是 TS_URB；`rhd=(interp_fcnm)u=(copy_fcnm)` 语法合法，ALBROF_2D 成功入 wrfout 证明 h 位补丁本身有效）→ 补抽 4 文件（fixL3）→ stage 24 文件齐、tar 142.8 MB 已拉回本地
+  - **诊断结果（3 图 + 日志）**：L1 单调 0 违例/295704、gap 0~4.59 K 违例 0/308025、**L1a↔L1b 十二变量 max|Δ|=0（位级非扰动铁证）**；L2 域均 PBLH 1199/1635/1902 m 单调、逐点违例 0.83–3.10%（稳定层混合——教材预判被证实）、ΔT2 ±0.1 K；L3 东组时均 −2.85 K/正午 −6.67 K、西组 −0.089 K（表值对照≈0）、SWDOWN/RAINNC 大差=云降水非线性反馈（判据二已改写为三级"应当不变"检验）
+  - ch20 章节：9 处待填全部回填 + 20.6 表修正 + 全角引号两轮；事故链扩至七条；§20.7.1 全书案例总索引（27 案）
+  - 四件套全同步：verify_log（ch20 段四节）、chapter_map（ch20 条目）、progress（头部改写 + 集群状态 + 第 15 条复核七项 + ch20 交付记录）、notes（本段）；material 末段收官
+  - **下一任务：ch21 solve_em.F 全流程 → 附录 a–d → index.md**；持续不标 goal complete
+
+## 用户问询：案例库"情况①"是否=已上游化（2026-10-11 下午）
+- **用户问题**：ch15 案例一（MSKF CMT）是否官方已接纳、进 source/？——**是**。实证：① `phys/module_cu_mskf.F` 行 5 `!JTR = Jacob Radford, NCSU`、行 18 特性清单"（7）CMT: Zhang&McFarlane JGR 1995"、行 3630-3635 `cmt_opt_flag=.TRUE.`（硬编码默认开，非 namelist）；② WRF 4.2 release notes（2020-04-23）原句收录；③ Registry line 68 有 `# CDXWRF modification` 标记（CORDEX 亦已上游化）。
+- **修订三处**：ch15 案例一改"情况①·已上游化"+ 源码证据 + release notes 原句 + 教学点补"改造生命周期"；案例二（NTiedtke scale_fac）、案例三（bmj_rad_feedback/GFL）同标注已上游化；ch01 §1.6.2 情况①再分两小类（已上游化/外部补丁）+ 判别三标志（署名注释/Registry 改造标记/release notes）。
+- **待办**：§20.7.1 的 27 案总索引表尚未逐条标"已上游化/外部补丁"两小类（已知：CLWRF/CDXWRF/Thompson 气溶胶感知/NSSL/P3/RCON-TEMPO/UCM 树/EEPS 之外大多已上游化；EEPS k-ε-θ²、ch19 单行补丁、ch20 三级 = 外部/本书原创）——可在下一批次与 ch21 一并完成。

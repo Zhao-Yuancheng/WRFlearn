@@ -1329,3 +1329,63 @@ WRF 里“太阳给多少能量”由三个数决定，需要小心区分：
 ---
 
 *本章交付信息：书页扫描直读（印刷页 62–121 共 54 页，公式编号与表 5.1–5.17 全部核对）、源码锚点 30 余处（含 RRTMG 波段数组、温室气体分支、臭氧链路、云光学旗标）、轻轨实验六组（含太阳几何“逐格逐位”闭环与两层温室勘误）、三张自算图 + 六张 PPT 原图。所有“实测值”出自 `workspace/scripts/ch12_experiment.py` 的一次运行输出（日志 `workspace/logs/ch12_experiment.log`）。本章勘误记录：表 5.16 的六行敏感性数值与 (5.6.4) 复算不符（见 12.9.4）、表 5.2 的 300 K 行 $B_{\lambda\max}$ 取整偏粗。
+
+---
+
+## 12.10 补充专栏【模块依赖树】：辐射家族的文件树
+
+> 辐射族以 **driver + 日/短波方案 + 公共支撑** 三层组织。全部文件名本地实测（`phys/` 目录 + CMakeLists/Makefile 交叉核验）。
+
+```text
+phys/module_radiation_driver.F            唯一入口：radt 节流 → sw/lw 各一次
+│                                          （CASE 分派 ra_sw/ra_lw 方案号；coszen 调度）
+├─ 日期/太阳几何
+│   ├─ share/module_model_constants.F      日长、SB 常数
+│   └─ phys/module_radconst? 系列 + calc_coszen（太阳天顶角，区间中点口径——12.3）
+├─ 长波（ra_lw_physics=4 精读主线）
+│   ├─ module_ra_rrtmg_lw.F                主壳：预置 profiling、波段 16、通量/加热率
+│   │   ├─ module_ra_rrtmg_lwf.F           fast 版（同一算法、去诊断分支）
+│   │   └─ module_ra_rrtmg_lwk.F           K 变体（4.x 后期引入的 RRTMG-K 路线）
+│   │       └─（内部 k-g 带表 module_ra_rrtmg_lw_kgb?*.F90 数据文件族）
+│   └─ module_ra_cam_support.F             CO2/O3/N2O/CH4/CFC 浓度剖面（ghg_input=1）
+├─ 短波（ra_sw_physics=4 主线）
+│   ├─ module_ra_rrtmg_sw.F（+ _swf/_swk 同族三件）
+│   ├─ module_ra_gsfcsw.F / module_ra_goddard.F（ra=5 Goddard，4.1 接入）
+│   └─ module_ra_rrtmg_aero_optical_util_cmaq.F   气溶胶光学工具（CMAQ 接口）
+├─ 其他方案：module_ra_cam.F（CAM 长短波）、module_ra_hs? 等
+├─ 云光学（icloud=1 → 云水/冰有效半径 → 每方案的光学转换）
+│   ├─ module_mp_thompson.F 内 calc_effectRad 系（方案自算 re，13.x 闭环）
+│   └─ effr 输出流（effr_diagnostics?，12.x 提及）
+└─ 消费者
+    ├─ phys/module_sf_noahdrv.F / module_sf_urban.F    SWDOWN/GLW 进陆面/城市（ch16/17）
+    └─ module_diagnostics_driver.F                      CLWRF/CORDEX 诊断（ch04 案例）
+```
+
+（带 `?` 的名字为数据文件族通配写法；其余均为实测文件名。）
+
+**读树三则**：
+
+1. **“driver 唯一入口”是辐射族的安全设计**：radt 节流、白天旗标、coszen、剖面准备都集中一处——你给辐射加诊断（如 CLWRF）时**不要碰各方案本体**，在 driver 与 diagnostics_driver 层做；
+2. **同一算法三份编译实体（lw/lwf/lwk）**：fast 版给业务、K 版给前沿测试——选型走 namelist，不改代码；这与 PBL 家族“一方案一文件”的松散组织不同；
+3. **辐射是“全局共享量”的最大生产者**：SWDOWN/GLW 被陆面、城市、海冰同时消费——改辐射接口（加输出量）必须走 Registry + driver 传递链（ch20 L3 的传参链是同款思路）。
+
+## 12.11 补充专栏【科研改造案例库】：辐射层三案
+
+### 案例一　cldovrlp=5（4.4）：云重叠假设的当代化
+
+- **课题**：云垂直重叠结构对辐射传输的影响（传统随机重叠低估深层云的连续性）；
+- **改造内容**（4.4 notes）：RRTMG 新增**指数-随机重叠**（exponential-random，cldovrlp=5），配套**去相关长度** idcor（固定 2500 m 或随行星边界层顶/对流深度变化）；
+- **原代码 vs 修改后**：情况①（源码内 `module_ra_rrtmg_lw/sw` 的重叠矩阵分支；rconfig `cldovrlp`/`idcor`）；本书 12.x 讲的传统 cldovrlp=1~4 五种假设在源码里就是一个 SELECT CASE——**云重叠是“假设可枚举”问题的完美标本**；
+- **教学点**：这类改造的验证方式是“同一云场换重叠假设看通量”——正是 ch12 轻轨实验手法的放大版。
+
+### 案例二　Goddard 辐射接入（4.1）：一个方案的“全家桶”耦合
+
+- **课题**：水凝物一致的光学性质（size/shape/spectrum-consistent 单次散射库 Yang et al. 2013）+ HITRAN2012 分子吸收；
+- **改造内容**（4.1 notes）：`module_ra_goddard.F` + `module_ra_gsfcsw.F`（ra_lw/sw=5），与 Goddard 4ICE 微物理（mp=7）**成对设计**（有效半径直通）；
+- **教学点**：辐射-微物理耦合是“双向接口”问题——微物理给 re、辐射给加热率；换一边必须检查另一边的单位与粒径假设（ch12 12.7 的 icloud 机制讨论在此升级）。
+
+### 案例三　时变温室气体与 SSP 档案（4.3.1–4.3.2；与 ch11 案例三互为表里）
+
+- **课题**：情景模拟（RCP→SSP）下的辐射强迫；
+- **改造内容**：CAMtr 档案族扩展（`CAMtr_volume_mixing_ratio_RCP*` → `..._SSP*`）+ RRTMG 短波时变化（4.3.2）；
+- **教学点**：辐射侧的“数据化改造”到此完成闭环——**当代辐射强迫实验的代码工作量趋近于零，数据工程量趋近于无穷**；这也是 ch11/ch12 反复出现的“数据即改造”主题。

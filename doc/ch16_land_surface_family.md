@@ -811,3 +811,73 @@ $$m_w=q\,m=0.00544\times1529.6=8.32\ \mathrm{kg\cdot m^{-2}}$$
 | 静态场 | static fields | geogrid→wrfinput |
 | 局地气候区 | local climate zone (LCZ) | 类号 51–61 |
 | 城市冠层（单层/多层） | urban canopy (SLUCM/BEP/BEM) | `sf_urban_physics`（第 17 章） |
+
+---
+
+## 16.10 补充专栏【模块依赖树】：陆面家族的文件树
+
+> 陆面 = 表面驱动器（分派）+ 各 LSM + 面层/海洋/湖泊侧件。`phys/` 下 `module_sf_*.F` 共 39 个（实测）。Noah 三件套的**函数级**拆解见本章 16.3–16.5（SFLX 九步 / PENMAN / TDFCND）。
+
+```text
+【驱动器】phys/module_surface_driver.F     两族 SELECT CASE（ch16 §16.2）：
+          sf_surface_physics → CALL lsm / lsm_mosaic（差 ! fasdas 注释，ch20 事故②）
+├─ Noah 谱系（=2，本书精读主线）
+│   ├─ phys/module_sf_noahdrv.F            壳：lsm 子程序（ch20 L3 传参链的一环）
+│   ├─ phys/module_sf_noahlsm.F           本体：SFLX 九步 / PENMAN / TDFCND / HRT / HSTEP
+│   ├─ phys/module_sf_noah_seaice.F(+drv) 海冰分支
+│   └─ phys/module_sf_noahlsm_glacial_only.F   冰面专用路径
+├─ NoahMP（=4，子模块 v5.1.2）
+│   ├─ phys/noahmp/src/NoahmpMainMod.F90 等（主控 + VarType + 各过程 Mod）
+│   └─ phys/noahmp/drivers/wrf/NoahmpUrbanDriverMainMod.F90（城市旁路，ch20 事故④）
+├─ 其他 LSM
+│   ├─ phys/module_sf_ruclsm.F（=3 RUC）、module_sf_pxlsm.F(+data)（=7 Pleim-Xiu）
+│   ├─ phys/module_sf_clm.F（=5，禁配城市 4.4.2）/ module_sf_ctsm.F（CTSM，4.x 新）
+│   ├─ phys/module_sf_ssib.F（SSiB）等
+├─ 简化/旁路
+│   ├─ phys/module_sf_slab.F（=1 热板；教材对照件）
+│   ├─ phys/module_sf_tmnupdate.F          深层温度缓变
+│   └─ phys/module_sf_lake.F（湖泊 FLake 族）
+├─ 面层（PBL 的下边界，PBL 章共用）
+│   ├─ phys/module_sf_sfclay.F / _sfclayrev.F（=1/91 修订 MM5）
+│   ├─ phys/module_sf_myjsfc.F（=2）、MYNN-SFC 子模块（=5，4.8 拆 land/water/ice）
+│   └─ phys/module_sf_pxsfclay.F / temfsfclay / qnsesfc / gfdl…
+└─ 海洋/水体
+    ├─ phys/module_sf_ocean_driver.F + module_sf_oml.F（=5 海洋混合层）
+    ├─ phys/module_sf_3dpwp.F（PWP 剖面）与 module_sf_sstskin.F / scmskintemp
+    └─ module_sf_sfcdiags.F(+_ruclsm)       诊断加餐（时间序列等）
+```
+
+**读树三则**：
+
+1. **Noah 的“壳-体”分工是 ch20 传参链的骨架**：ALBROF_2D 走 `surface_driver → noahdrv(lsm) → BEP_BEM`——壳层（drv）只管哑元转发，物理全在 noahlsm/BEP_BEM 本体（ch20 §20.4.2 五处补丁的树位置）；
+2. **“城市不是独立 LSM”**：SLUCM/BEP/BEM 挂在 Noah/NoahMP 的城市格点旁路（==1 CALL urban / ==2,3 CALL BEP_BEM，ch17 实测）——这就是 4.4.2“CLM 禁配城市”检查的意义（两套城市旁路会打架）；
+3. **面层与 LSM 是两套方案号**（sf_sfclay_physics / sf_surface_physics）：ch19 的兼容链（YSU 需 sfclay∈{1,91}）在这棵树的“面层”分支上。
+
+## 16.11 补充专栏【科研改造案例库】：陆面层四案
+
+### 案例一　Noah 灌溉三选项（4.2）与 NoahMP 动态灌溉（4.3）：农业气象两条路
+
+- **课题**：灌溉对区域气候的反馈（印度/华北的“灌溉降温”类研究）；
+- **改造内容**：4.2 给 **Noah** 加三选项（Valmassoi et al. 2020 GMD：Channel/Drip/Sprinkler——水分别从地表/冠层/最低模式层蒸发）；4.3 给 **NoahMP** 加**动态灌溉**（估算需水量 + 三种施水法，`&noahmp` namelist 选择）——“静态开关 → 动态闭环”的版本演进；
+- **原代码 vs 修改后**：情况①（源码内；Noah 的在 `module_sf_noahlsm.F` 的蒸发分支旁，NoahMP 的在其 irrigation Mod）；
+- **教学点**：同一科学问题在“旧 LSM 补丁”与“新 LSM 子系统”两种成熟度上的不同落法——**选 LSM 就是选改造面**。
+
+### 案例二　Noah-MP v5.1.2（4.8）：重构版子模块
+
+- **课题**：NCAR/NOAA 联合的 NoahMP 重构（CCPP 化、选项裁剪、bug 清账）；
+- **改造内容**（4.8 notes）：从 v4.7（4.7.1 内）升到 v5.1.2，“a few new options and improvements”——**子模块制（4.4 起）让 LSM 升级不再随 WRF 发版走**；
+- **与本书的关系**：ch16 的 Noah 精读（=2）不受影响，但 NoahMP 用户必须记录子模块版本号——**“WRF 4.8.0 + NoahMP v5.1.2”才是完整版本口径**；
+- **教学点**：子模块化后，“读哪个版本的 LSM”成为实验可复现性声明的一部分（对照 4.5 起 release notes 反复强调“别下 Source Code 包”）。
+
+### 案例三　土壤成分与 Pedotransfer（4.0）：把土壤学表换成物理函数
+
+- **课题**：土壤水力学参数随成分连续变化（替代 12 类查表）；
+- **改造内容**（4.0 notes）：NoahMP 读土壤成分数据（sand/silt/clay 分数），用 PT 函数（`opt_soil`/`opt_pedo`，系数在 MPTABLE）导出持水/导水参数；WPS 侧配套 GEOGRID.TBL 条目与数据集；
+- **与本书的关系**：ch16 §16.6 的 SOILPARM“四式全表互核”（表-式不符三处）正是“查表 vs 函数”两种范式的现场——PT 路线是那三处不一致的“釜底抽薪”方案；
+- **教学点**：**参数表对不上时，改造方向往往是“把表换成生成它的公式”**。
+
+### 案例四　RUC/PX 的持续小修（4.5–4.7）：LSM 维护的真实节奏
+
+- **课题**：杂项科学修正（RUC 雪密度经验式、雪“马赛克”温度阈值、PX 的 MODIS 时变植被/LAI 与 LCZ 兼容、湿地蒸发项）；
+- **改造内容**：4.0/4.1/4.6/4.7 各 release notes 的 LSM 小节——每个都是“改一个经验式/加一个数据源”级别；
+- **教学点**：LSM 家族的改造大多**小而频**（面广、单位制复杂、观测约束强）——适合“查表→改式→单点 sanity”的轻量闭环（ch16 E1 的能量闭合 2e-11 W/m² 就是这类改动的验收工具）。

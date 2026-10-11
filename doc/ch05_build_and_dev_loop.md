@@ -1,8 +1,8 @@
 # 第 5 章 编译体系与增量重编译：从整树到单点的开发循环
 
 > **本章定位**：第 II 部第三站。第 3 章给了你调用链与目录树，第 4 章给了你 Registry 的生成链；本章回答一个工程问题——**代码怎么变成可执行文件，以及改一行代码之后，你要等多久、怎么等得更聪明**。
-> 学完本章，你将能够：说清 `configure`/`compile` 每一步在做什么（包括它悄悄删掉你 `main/` 下四个 exe 的那一步）；完整掌握源码中并存的第二套构建体系——cmake 路线；拿着本书整理的 `test/em` 理想算例全表按需选例；并用实测数据建立对"增量重编译成本"的直觉——**改一个叶节点约 1~2 分钟，改一次 Registry 约 11 分钟**——这是第 20 章"改造 WRF"的预算基础。
-> **与配套手册的分工**：环境准备、依赖链编译、AVX-512 相关 stanza 修改、容器化提交等"从零到能编译"的内容，已由配套《WRF 编译手册（oneAPI 2026）》完整覆盖，本章**不重写**，只在需要处引用。本章只写手册没有的三件事：① cmake 路线；② `test/em` 全表；③ 增量重编译开发循环的实测与陷阱。
+> 学完本章，你将能够：说清 `configure`/`compile` 每一步在做什么（包括它悄悄删掉你 `main/` 下四个 exe 的那一步）；完整掌握源码中并存的第二套构建体系——cmake 路线；拿着本书整理的 `test/em` 理想算例全表按需选例；并用实测数据建立对“增量重编译成本”的直觉——**改一个叶节点约 1~2 分钟，改一次 Registry 约 11 分钟**——这是第 20 章“改造 WRF”的预算基础。
+> **与配套手册的分工**：环境准备、依赖链编译、AVX-512 相关 stanza 修改、容器化提交等“从零到能编译”的内容，已由配套《WRF 编译手册（oneAPI 2026）》完整覆盖，本章**不重写**，只在需要处引用。本章只写手册没有的三件事：① cmake 路线；② `test/em` 全表；③ 增量重编译开发循环的实测与陷阱。
 > 本章所有结论均以本地源码（`source\WRFv4.8.0\WRFV4.8.0\`）与集群实际构建树（`IceLake/wrf-4.8/build/WRF/`）实测核验。
 
 ---
@@ -13,9 +13,9 @@
 
 1. **两套构建体系的全景与分工**：传统 `configure` + `compile`（就地构建）与 `configure_new` + `compile_new` + cmake（树外构建）并存一树，各自的产物、目录与清理方式；
 2. **`compile` 脚本逐步源码走读**：命令行分发（`em_real` 与 `em_*` 的 `$ZAP` 差异）、Registry 合成、先删 exe 再链接的全过程；
-3. **编译依赖图的本质**：Fortran module 依赖如何决定"改一个文件要重编几个对象"，`main/depend.common` 的角色；
-4. **Registry 触发链的第三个环节**（第 4 章续）：改 `Registry.EM_COMMON` 后为什么直接编译会"静默失效"，如何用一个 `touch` 解开——以及 dry-run 实测证据；
-5. **cmake 路线的完整工作流**：`configure_new` 的交互设计与全部命令行选项、`wrf_config.cmake`/toolchain 机制、`CMakeLists.txt` 的选项全集（core/nesting/case/布尔开关）、`compile_new`、"安装目录"式产物布局、`cleanCMake.sh`；
+3. **编译依赖图的本质**：Fortran module 依赖如何决定“改一个文件要重编几个对象”，`main/depend.common` 的角色；
+4. **Registry 触发链的第三个环节**（第 4 章续）：改 `Registry.EM_COMMON` 后为什么直接编译会“静默失效”，如何用一个 `touch` 解开——以及 dry-run 实测证据；
+5. **cmake 路线的完整工作流**：`configure_new` 的交互设计与全部命令行选项、`wrf_config.cmake`/toolchain 机制、`CMakeLists.txt` 的选项全集（core/nesting/case/布尔开关）、`compile_new`、“安装目录”式产物布局、`cleanCMake.sh`；
 6. **`test/em` 理想算例全表**：15 个目录、14 个可运行算例的场景、分辨率、域规模、时步与时长——理想实验的选例指南；
 7. **增量重编译实测**：A 组（叶节点改动 81 s / 还原 45 s）与 B 组（Registry 全链 649 s × 2）的完整数据、md5 判据与生成的 `t2_peak` 证据。
 
@@ -67,7 +67,7 @@ WRFV4.8.0/
 └── doc/README.cmake_build  ← cmake 路线的官方使用说明
 ```
 
-两条路线**共享同一份源码与同一套 stanza 库**（cmake 路线的 stanza 仍然从 `arch/configure.defaults` 里读），但配置的"形态"完全不同：传统路线把一切塞进一个手写风格的 `configure.wrf`（make 变量表），cmake 路线把 stanza 翻译成 CMake 工具链文件 `wrf_config.cmake`。这也是为什么同一台机器上两条路线的编译选项能保持口径一致——它们的源头是同一份 `configure.defaults`。
+两条路线**共享同一份源码与同一套 stanza 库**（cmake 路线的 stanza 仍然从 `arch/configure.defaults` 里读），但配置的“形态”完全不同：传统路线把一切塞进一个手写风格的 `configure.wrf`（make 变量表），cmake 路线把 stanza 翻译成 CMake 工具链文件 `wrf_config.cmake`。这也是为什么同一台机器上两条路线的编译选项能保持口径一致——它们的源头是同一份 `configure.defaults`。
 
 ### 5.1.2 对照表
 
@@ -80,9 +80,9 @@ WRFV4.8.0/
 | 运行目录 | `test/em_real/` 等通过符号链接指向 `main/` 的可执行文件 | `install/test/<case>/`（自带可执行与输入文件副本） |
 | 多配置并存 | 不便（就地构建互相覆盖） | 支持：`-d` 指定多个 `_build*` 目录、`-i` 指定多个安装目录 |
 | 清理 | `./clean`、`./clean -a` | `./cleanCMake.sh -c/-b/-f/-a`（含指定 `-d/-i` 的变体） |
-| 现状 | 用户群最大、配套手册与教程默认 | 较新，正在补齐（如 ideal case 中 em_ideal 在 cmake 里被备注为"技术上可行但未暴露为选项"） |
+| 现状 | 用户群最大、配套手册与教程默认 | 较新，正在补齐（如 ideal case 中 em_ideal 在 cmake 里被备注为“技术上可行但未暴露为选项”） |
 
-> **本教材的实操默认**：用传统路线（与配套手册、与你的集群构建树一致）。cmake 路线在 §5.3 完整讲清、但本章不把它作为实验载体——它的实验价值（树外构建、多配置并存）在你将来"同时维护多个改造版本"时会回来找你。
+> **本教材的实操默认**：用传统路线（与配套手册、与你的集群构建树一致）。cmake 路线在 §5.3 完整讲清、但本章不把它作为实验载体——它的实验价值（树外构建、多配置并存）在你将来“同时维护多个改造版本”时会回来找你。
 
 ### 5.1.3 WPS 侧的对应关系
 
@@ -92,11 +92,11 @@ WPS 4.7.0 同样出现 cmake 化痕迹：源码树里有 `cmake/` 目录，`geog
 
 ## 5.2 传统路线剖析：compile 脚本到底做了什么
 
-> 从"选 stanza"到"编译成功"的完整操作步骤、依赖库准备、stanza 修改（AVX-512 等），见配套《WRF 编译手册》。本节只做**源码级解剖**：那些手册不写、但你迟早要懂的机制。
+> 从“选 stanza”到“编译成功”的完整操作步骤、依赖库准备、stanza 修改（AVX-512 等），见配套《WRF 编译手册》。本节只做**源码级解剖**：那些手册不写、但你迟早要懂的机制。
 
 ### 5.2.1 配置阶段：stanza 与 configure.wrf
 
-`arch/configure.defaults` 是一本"编译器配方库"，由 `#ARCH` 注释行分隔成若干 **stanza（段）**。每一段长这样（以 GNU 段为例）：
+`arch/configure.defaults` 是一本“编译器配方库”，由 `#ARCH` 注释行分隔成若干 **stanza（段）**。每一段长这样（以 GNU 段为例）：
 
 ```text
 #ARCH    Linux i486 i586 i686 armv7l aarch64, gfortran compiler with gcc #serial smpar dmpar dm+sm
@@ -113,7 +113,7 @@ ARCH_LOCAL      =       -DNONSTANDARD_SYSTEM_SUBR  CONFIGURE_D_CTSM
 
 要点：
 
-- `DESCRIPTION` 是段的"人类可读名"；传统 `configure` 交互时显示编号 + 描述（编号随环境变化，描述不变——cmake 路线索性只认描述）；
+- `DESCRIPTION` 是段的“人类可读名”；传统 `configure` 交互时显示编号 + 描述（编号随环境变化，描述不变——cmake 路线索性只认描述）；
 - `CONFIGURE_FC`、`CONFIGURE_D_CTSM` 这类**占位符**由 `configure` 在交互问答中替换（比如问你是否用 MPI，决定 `FC` 填 `mpif90` 还是 `gfortran`）；
 - 选中之后，整段 + 你的问答结果被写进 `configure.wrf`——它是后续一切 make 的变量来源。
 
@@ -144,9 +144,9 @@ set ZAP = ( main/wrf.exe main/real.exe main/ndown.exe main/tc.exe )
 set ZAP = ( main/wrf.exe main/ideal.exe )
 ```
 
-`$ZAP` 是"本次构建要产出的可执行文件清单"。
+`$ZAP` 是“本次构建要产出的可执行文件清单”。
 
-**第二步：Registry 合成段。** 脚本检查 `Registry/Registry`（构建用的"总装注册表"）是否存在、以及是否落后于 `Registry/Registry.EM`——注意比较对象**只是 `Registry.EM`**：
+**第二步：Registry 合成段。** 脚本检查 `Registry/Registry`（构建用的“总装注册表”）是否存在、以及是否落后于 `Registry/Registry.EM`——注意比较对象**只是 `Registry.EM`**：
 
 ```text
 if ( ! -f Registry/Registry ) then
@@ -163,7 +163,7 @@ if ( $overwrite ) then
 endif
 ```
 
-也就是说：`Registry/Registry` 是**自动生成的副本**，内容 = 一行警告 + `Registry.EM` 全文。而 `Registry.EM` 本身是一张"装配清单"——开头只有两句 include 指令，指向真正的数据：
+也就是说：`Registry/Registry` 是**自动生成的副本**，内容 = 一行警告 + `Registry.EM` 全文。而 `Registry.EM` 本身是一张“装配清单”——开头只有两句 include 指令，指向真正的数据：
 
 ```text
 #  Registry file, EM
@@ -187,13 +187,13 @@ include Registry.EM_COMMON
 make $arglist A2DCASE="$A2DCASE" WRF_SRC_ROOT_DIR="$WRF_SRC_ROOT_DIR"
 ```
 
-**这一步请记住：`compile` 从不"增量保留"可执行文件——它先把 `main/` 下本次相关的 exe 全部删掉，再让 make 重建。** 后果是：如果后续链接失败，你手里就没有旧 exe 可用了（排查时请先把现有 exe 的 md5 存一份）。
+**这一步请记住：`compile` 从不“增量保留”可执行文件——它先把 `main/` 下本次相关的 exe 全部删掉，再让 make 重建。** 后果是：如果后续链接失败，你手里就没有旧 exe 可用了（排查时请先把现有 exe 的 md5 存一份）。
 
 **第四步：make 的执行。** `$arglist` 里带着 `em_real` 目标传给顶层 Makefile。以顶层 `Makefile` 的 `em_real` 目标为例：它依次（1）删除 `main/` 下四个 exe、（2）进入 `main/` 构建 `wrf.exe`、（3）在 `test/em_real/` 重建指向 `main/` 的符号链接。构建顺序由顶层 make 调度：先 `frame`（含 Registry 触发规则）、`external`、`share`，再 `phys`、`dyn_em`，最后 `main` 链接出 exe——第 3 章的程序族地图，就是这条顺序的产物。
 
-### 5.2.3 依赖图的本质：为什么"改一个文件"≠"编一个文件"
+### 5.2.3 依赖图的本质：为什么“改一个文件”≠“编一个文件”
 
-传统路线是标准 make 增量构建：每个 `.o` 有"先决条件清单"，写在一个由构建系统维护的集中文件 `main/depend.common` 中。里面每条记录都是这个形状（节选）：
+传统路线是标准 make 增量构建：每个 `.o` 有“先决条件清单”，写在一个由构建系统维护的集中文件 `main/depend.common` 中。里面每条记录都是这个形状（节选）：
 
 ```text
 module_ra_rrtmg_sw.o: \
@@ -204,13 +204,13 @@ module_ra_rrtmg_sw.o: \
 	module_ra_rrtmg_lw.o
 ```
 
-Fortran 的模块依赖会把"传播面"放大：一个 `.F` 文件被编译时，如果它含 `MODULE m`，编译产物除了 `.o` 还有 `m.mod`；**所有 `USE m` 的编译单元都必须在 `.mod` 之后编译**。因此"改了叶节点的几行代码"的真实代价 = 该文件自身 + 所有直接/间接引用其模块的编译单元。这在 §5.5 的实测里会给出精确数字（12 个对象）。
+Fortran 的模块依赖会把“传播面”放大：一个 `.F` 文件被编译时，如果它含 `MODULE m`，编译产物除了 `.o` 还有 `m.mod`；**所有 `USE m` 的编译单元都必须在 `.mod` 之后编译**。因此“改了叶节点的几行代码”的真实代价 = 该文件自身 + 所有直接/间接引用其模块的编译单元。这在 §5.5 的实测里会给出精确数字（12 个对象）。
 
 另一半代价在**链接**：任何一个参与 `wrf.exe` 的对象变了，`main/wrf.exe` 都要重新链接一次；而 WRF 的 `wrf.exe` 是 80 MB 量级的庞然大物——链接本身也要时间。
 
-> **工程常识**：改造 WRF 时，改动位置越"根"（被越多模块引用），重编面越大。这解释了为什么老手总把"诊断小改动"优先放在叶子模块里（如某个物理方案文件），而不是 `frame/` 或 `share/` 里的公共模块。
+> **工程常识**：改造 WRF 时，改动位置越“根”（被越多模块引用），重编面越大。这解释了为什么老手总把“诊断小改动”优先放在叶子模块里（如某个物理方案文件），而不是 `frame/` 或 `share/` 里的公共模块。
 
-### 5.2.4 Registry 触发链与"静默失效"陷阱（第 4 章续）
+### 5.2.4 Registry 触发链与“静默失效”陷阱（第 4 章续）
 
 第 4 章讲了生成物怎么来，这里补上**触发条件**——完整链条有三个环节：
 
@@ -254,9 +254,9 @@ Fortran 的模块依赖会把"传播面"放大：一个 `.F` 文件被编译时�
 
 ### 5.3.1 设计哲学：树外构建、工具链文件、安装目录
 
-cmake 路线与传统路线最本质的差别是**构建的位置与"安装"的概念**：
+cmake 路线与传统路线最本质的差别是**构建的位置与“安装”的概念**：
 
-- **树外构建（out-of-source）**：配置与编译全部发生在源码树旁的 `_build/` 目录（可用 `-d` 改名，官方建议保留 `_build*` 前缀以表明"可安全整体删除"）。源码树里不再散落 `.o`/`.mod`——想做多个实验版本时，多开几个 `_build*` 即可互不干扰；
+- **树外构建（out-of-source）**：配置与编译全部发生在源码树旁的 `_build/` 目录（可用 `-d` 改名，官方建议保留 `_build*` 前缀以表明“可安全整体删除”）。源码树里不再散落 `.o`/`.mod`——想做多个实验版本时，多开几个 `_build*` 即可互不干扰；
 - **工具链文件**：stanza 信息被 `configure_new` 翻译成 `_build/wrf_config.cmake`，再作为 `-DCMAKE_TOOLCHAIN_FILE=` 传给 cmake——CMake 用它来认识编译器；
 - **安装目录**：构建产物**安装**到 `install/`（默认 `$PWD/install`，可 `-i` 指定）：可执行文件进 `install/bin/`（无 `.exe` 后缀），并复制到 `install/test/<case>/`；连带输入文件也从源码 `test/<case>` 复制过来。运行在 `install/` 下进行，源码树始终只读般干净。
 
@@ -316,7 +316,7 @@ mpirun -np <N> wrf
 
 ### 5.3.4 选项系统：`CMakeLists.txt` 选项全集
 
-cmake 路线把"选择"结构化成了三组枚举 + 两组布尔开关（均以集群源码实测列出）。
+cmake 路线把“选择”结构化成了三组枚举 + 两组布尔开关（均以集群源码实测列出）。
 
 **三组枚举：**
 
@@ -334,20 +334,20 @@ cmake 路线把"选择"结构化成了三组枚举 + 两组布尔开关（均以
 
 **固定项（源码中写死，不属于用户选择）：** `USE_ALLOCATABLES`、`wrfmodel`、`GRIB1`、`INTIO`、`KEEP_INT_AROUND`、`LIMIT_ARGS`、`ENABLE_CRTM`、`ENABLE_WAVELET`、`ENABLE_BUFR`（均 ON）；`MAX_DOMAINS_F = 21`、`CONFIG_BUF_LEN = 65536`、`MAX_HISTORY = 25`、`IWORDSIZE=4 / DWORDSIZE=8 / LWORDSIZE=4`（这些常量在第 4 章的生成物里都出现过——两套体系喂给 `tools/registry` 的编译宏必须一致）。
 
-**配置期的自检**（`CMakeLists.txt` 中实测）：`WRF_CORE`/`WRF_NESTING`/`WRF_CASE` 取值不属于枚举时报 `FATAL_ERROR`；非 ARW 核强制 `USE_ALLOCATABLES=OFF`；`WRF_CASE` 在列表中位于 `EM_B_WAVE` 之前的算"专用理想案"，之后的是"通用理想算例"——这会影响 ideal 初值模块的组织方式。
+**配置期的自检**（`CMakeLists.txt` 中实测）：`WRF_CORE`/`WRF_NESTING`/`WRF_CASE` 取值不属于枚举时报 `FATAL_ERROR`；非 ARW 核强制 `USE_ALLOCATABLES=OFF`；`WRF_CASE` 在列表中位于 `EM_B_WAVE` 之前的算“专用理想案”，之后的是“通用理想算例”——这会影响 ideal 初值模块的组织方式。
 
-### 5.3.5 清理与"原地复活"
+### 5.3.5 清理与“原地复活”
 
 `cleanCMake.sh` 的四档清理（对传统 `./clean` 的对应）：
 
 | 命令 | 动作 | 用途 |
 |---|---|---|
 | `./cleanCMake.sh`（默认 `-c`） | 进 `_build` 执行 `make clean` | 只删对象，保留配置 |
-| `-b` | 按 `_build/install_manifest.txt` 删安装文件 | "安装被弄乱了"时只重装不重编 |
+| `-b` | 按 `_build/install_manifest.txt` 删安装文件 | “安装被弄乱了”时只重装不重编 |
 | `-f` | 直接删 `_build` 与 `install/` | 配置坏了（cmake 缓存顽疾）时的彻底重置 |
 | `-a` | 依次 `-c` → `-b` → `-f` | 有序全清 |
 
-`-d/-i` 可与上述组合指定"操作哪一个构建/安装目录"；文档给了一个很好的例子：改乱了 `install/test/em_real/namelist.input` 又忘了原值——`./cleanCMake.sh -b && ./compile_new` 即可在不重编的前提下拿回一份原装安装。
+`-d/-i` 可与上述组合指定“操作哪一个构建/安装目录”；文档给了一个很好的例子：改乱了 `install/test/em_real/namelist.input` 又忘了原值——`./cleanCMake.sh -b && ./compile_new` 即可在不重编的前提下拿回一份原装安装。
 
 ### 5.3.6 两条路线的取舍
 
@@ -356,7 +356,7 @@ cmake 路线把"选择"结构化成了三组枚举 + 两组布尔开关（均以
 | 第一次编译、跟手册/教程走 | 传统路线 |
 | 只维护一个改动版 | 传统路线（改动即编，行为可预期） |
 | 同时维护多个改造版本（ch20 场景） | cmake 路线（多 `_build*` 并存） |
-| 想"重置一切"不污染源码 | cmake 路线 |
+| 想“重置一切”不污染源码 | cmake 路线 |
 | 需要 `.exe` 后缀、脚本/集群习惯 | 传统路线 |
 
 ---
@@ -381,9 +381,9 @@ cmake 路线把"选择"结构化成了三组枚举 + 两组布尔开关（均以
 
 | 算例 | 场景 | dx | e_we × e_sn | e_vert | 时步 | 时长 | 特征 |
 |---|---|---|---|---|---|---|---|
-| `em_b_wave` | 斜压波（中纬通道） | 100 km | 41 × 81 | 65 | 600 s | 5 天 | **x 周期 + y 对称**（通道模型；ch18 勘正："双向周期"有误）；物理全关（纯动力学） |
+| `em_b_wave` | 斜压波（中纬通道） | 100 km | 41 × 81 | 65 | 600 s | 5 天 | **x 周期 + y 对称**（通道模型；ch18 勘正：“双向周期”有误）；物理全关（纯动力学） |
 | `em_convrad` | 辐射—对流平衡 | 1 km | 101 × 101 | 35 | 5 s | 1 小时 | WSM6 + RRTMG×2 + YSU + slab 陆面（对流—辐射耦合） |
-| `em_grav2d_x` | 二维密度流（x-z，Straka 1993 基准；冷泡触发） | 100 m | 513 × 3 | 65 | 1 s | 15 分钟 | 二维；物理全关；固定粘性 khdif=kvdif=75 m²/s（ch18 勘正："重力波"旧称有误） |
+| `em_grav2d_x` | 二维密度流（x-z，Straka 1993 基准；冷泡触发） | 100 m | 513 × 3 | 65 | 1 s | 15 分钟 | 二维；物理全关；固定粘性 khdif=kvdif=75 m²/s（ch18 勘正：“重力波”旧称有误） |
 | `em_heldsuarez` | 保持—苏亚雷斯全球环流 | ≈625 km × 556 km | 65 × 37 | 41 | 1800 s | 1000 天 | 全球通道；长波走 Held-Suarez 型强迫（ra_lw=31），其余物理关 |
 | `em_hill2d_x` | 二维山波 | 2 km | 202 × 3 | 41 | 20 s | 10 小时 | 物理全关；地形激励重力波 |
 | `em_les` | 大涡模拟 | 100 m | 40 × 40 | 40 | 1 s | 1 小时 | 仅地面层方案开启；km_opt=2（3D 湍流闭合）+ 周期边界 |
@@ -396,7 +396,7 @@ cmake 路线把"选择"结构化成了三组枚举 + 两组布尔开关（均以
 | `em_tropical_cyclone` | 理想台风 | 15 km | 201 × 201 | 21 | 60 s | 6 天 | Kessler + YSU + slab；无辐射/积云；轴对称涡旋初始化 |
 | `em_fire` | 火灾蔓延 | 50 m | 103 × 103 | 51 | **0.5 s** | 1 小时 | 火模型（`&fire` 段 + 网格细化 `sr_x/sr_y`） |
 
-> **表注（`em_real` 与物理套装机制）**：`em_real` 模板里七个物理方案号都写着 `-1`，同时有一行 `physics_suite = 'CONUS'`——这是 WRF 4.x 的**物理套装**特性：`share/module_check_a_mundo.F` 的 `setup_physics_suite` 会在启动检查阶段把仍为 `-1` 的项替换为套装预设值（CONUS：cu=Tiedtke、mp=Thompson、ra=RRTMG×2、pbl/sfclay=MYJ、surface=Noah）；你若把某一项写了具体数字，就覆盖套装值。所以"模板能不能直接跑"的答案是：能，但跑的是 CONUS 预设而非你的意愿——正式使用前按第 7 章方式显式填写。
+> **表注（`em_real` 与物理套装机制）**：`em_real` 模板里七个物理方案号都写着 `-1`，同时有一行 `physics_suite = 'CONUS'`——这是 WRF 4.x 的**物理套装**特性：`share/module_check_a_mundo.F` 的 `setup_physics_suite` 会在启动检查阶段把仍为 `-1` 的项替换为套装预设值（CONUS：cu=Tiedtke、mp=Thompson、ra=RRTMG×2、pbl/sfclay=MYJ、surface=Noah）；你若把某一项写了具体数字，就覆盖套装值。所以“模板能不能直接跑”的答案是：能，但跑的是 CONUS 预设而非你的意愿——正式使用前按第 7 章方式显式填写。
 
 关于 `em_fire` 的时步一栏值得单独说明：它的 `namelist.input` 写的是
 
@@ -406,7 +406,7 @@ time_step_fract_num                 = 1,
 time_step_fract_den                 = 2,
 ```
 
-WRF 的时步支持"整数 + 分数"表示：总时步 = `time_step + time_step_fract_num/time_step_fract_den` = 0 + 1/2 = **0.5 s**。其余算例都是整数时步。`em_fire` 还有 `namelist.input_hill_simple`、`namelist.input_rain`、`namelist.input_two_fires` 三个场景变体与配套的 `namelist.fire*`，是本章表中"一个算例多种玩法"的唯一特例。
+WRF 的时步支持“整数 + 分数”表示：总时步 = `time_step + time_step_fract_num/time_step_fract_den` = 0 + 1/2 = **0.5 s**。其余算例都是整数时步。`em_fire` 还有 `namelist.input_hill_simple`、`namelist.input_rain`、`namelist.input_two_fires` 三个场景变体与配套的 `namelist.fire*`，是本章表中“一个算例多种玩法”的唯一特例。
 
 ### 5.4.3 启动一个理想算例的完整流程
 
@@ -426,9 +426,9 @@ mpirun -np <N> ./wrf.exe
 
 要点：
 
-- 理想算例**不需要 WPS、不需要外部数据**——初始场由 `ideal.exe` 按算例内置的解析式（如热泡、山体、飑线理论廓线）构造。这就是它们对"验证改造"的价值：**验证一个编译期改动是否破坏了模式，最快的路径是跑一个理想算例**（第 18 章会精选实操）；
+- 理想算例**不需要 WPS、不需要外部数据**——初始场由 `ideal.exe` 按算例内置的解析式（如热泡、山体、飑线理论廓线）构造。这就是它们对“验证改造”的价值：**验证一个编译期改动是否破坏了模式，最快的路径是跑一个理想算例**（第 18 章会精选实操）；
 - 部分算例依赖 `input_sounding`（探空廓线文件，如各类对流算例）——它也在算例目录里，可编辑；
-- 切换算例需要重新 `./compile em_xx`（会重编 `ideal.exe` 与相关对象）——所以"跑多个理想算例"意味着多次编译，选例时心里有数。
+- 切换算例需要重新 `./compile em_xx`（会重编 `ideal.exe` 与相关对象）——所以“跑多个理想算例”意味着多次编译，选例时心里有数。
 
 ### 5.4.4 选例指南
 
@@ -446,12 +446,12 @@ mpirun -np <N> ./wrf.exe
 
 ### 5.5.1 实验设计
 
-目标：把"改代码 → 编译 → 验证"的循环成本量化成秒级数据，并验证 §5.2.4 的 Registry 陷阱。实验在集群构建树（`build/WRF`，em_real，容器内 oneAPI 2026 `ifx`，`-j 8`）上执行，分两组：
+目标：把“改代码 → 编译 → 验证”的循环成本量化成秒级数据，并验证 §5.2.4 的 Registry 陷阱。实验在集群构建树（`build/WRF`，em_real，容器内 oneAPI 2026 `ifx`，`-j 8`）上执行，分两组：
 
 | 编号 | 操作 | 判据 |
 |---|---|---|
 | **A1** | 向叶节点 `phys/module_ra_rrtmg_lw.F` **追加一行注释**（无逻辑变化）→ 编译 | 耗时、重建对象数、`.o` 与 exe 的 md5 |
-| **A2** | 还原该文件 → 再编译 | 同上（检验"还原"路径） |
+| **A2** | 还原该文件 → 再编译 | 同上（检验“还原”路径） |
 | **B0** | 向 `Registry.EM_COMMON` 追加 `T2_PEAK` 声明（**不** touch）→ dry-run | dry-run 中的 `tools/registry` 命令数（陷阱判据） |
 | **B1** | `touch Registry/Registry` → 全树编译 | 耗时、重建对象数、`t2_peak` 生成物证据、exe md5 |
 | **B2** | 还原 `Registry.EM_COMMON` → `touch` → 再全树编译 | 同 B1（验证完全还原） |
@@ -473,7 +473,7 @@ main/ndown.exe: OK
 main/tc.exe: OK
 ```
 
-- **81 秒**完成"重编 + 重链四个 exe"全流程（含 12 个对象重编）；
+- **81 秒**完成“重编 + 重链四个 exe”全流程（含 12 个对象重编）；
 - 重编的 12 个对象（实测清单）：
 
 ```text
@@ -491,9 +491,9 @@ dyn_em/start_em.o
 dyn_em/solve_em.o
 ```
 
-- **一个反直觉的事实**：哪怕只加了一行注释（逻辑零变化），重编的对象**逐字节一致**——`module_ra_rrtmg_lw.o` 的 md5 与基线相同，四个 exe 的 md5 也全部相同。两层含义：① `ifx` 不会把注释或时间戳烙进目标文件（构建是"内容确定"的）；② 因此 **md5 就是"改动是否引入行为差异"的免费判据**——这是改造 WRF 时的第一条安全带。
+- **一个反直觉的事实**：哪怕只加了一行注释（逻辑零变化），重编的对象**逐字节一致**——`module_ra_rrtmg_lw.o` 的 md5 与基线相同，四个 exe 的 md5 也全部相同。两层含义：① `ifx` 不会把注释或时间戳烙进目标文件（构建是“内容确定”的）；② 因此 **md5 就是“改动是否引入行为差异”的免费判据**——这是改造 WRF 时的第一条安全带。
 
-- **传播面的启示**：改动面看着"只是辐射模块"，波及面却包含 `microphysics_driver`、`cumulus_driver`、`solve_em` 等 12 个对象——它们通过 Fortran module 引用链与顶层调用者关联（§5.2.3）。改动位置越"根"，重编面越大。
+- **传播面的启示**：改动面看着“只是辐射模块”，波及面却包含 `microphysics_driver`、`cumulus_driver`、`solve_em` 等 12 个对象——它们通过 Fortran module 引用链与顶层调用者关联（§5.2.3）。改动位置越“根”，重编面越大。
 
 **A2（还原文件）**：
 
@@ -502,7 +502,7 @@ dyn_em/solve_em.o
 # md5 校验：四个 exe 全部 OK
 ```
 
-- **45 秒**，触发了 4 个对象的残余重编（`module_madwrf`、`module_cumulus_driver`、`module_first_rk_step_part1`、`solve_em`——都是 A1 重编集合的子集）。这类"残余重编"是 make 时间戳判定在大规模并行构建中的正常现象；
+- **45 秒**，触发了 4 个对象的残余重编（`module_madwrf`、`module_cumulus_driver`、`module_first_rk_step_part1`、`solve_em`——都是 A1 重编集合的子集）。这类“残余重编”是 make 时间戳判定在大规模并行构建中的正常现象；
 - 无论重编了几个对象，**四个 exe 的 md5 与基线完全一致**——两次编译之间，可执行行为零漂移。
 
 ### 5.5.3 B 组结果：Registry 全链的代价与陷阱
@@ -515,7 +515,7 @@ dyn_em/solve_em.o
 
 仅修改 `Registry.EM_COMMON` 时，整树 dry-run（`make -n -i -r em_real`）里**没有任何** `tools/registry` 命令——陷阱成立（§5.2.4 机制）。
 
-**B1（touch + 全链重编）**：dry-run 中重新出现 registry 命令（位于 dry-run 输出第 57304 行），全文如下——这就是"一行 Registry 声明"引发的实际动作：
+**B1（touch + 全链重编）**：dry-run 中重新出现 registry 命令（位于 dry-run 输出第 57304 行），全文如下——这就是“一行 Registry 声明”引发的实际动作：
 
 ```text
 ( cd .. ; tools/registry -DEM_CORE= -DNMM_CORE= -DNMM_MAX_DIM=2600 -DDA_CORE= -DWRFPLUS= \
@@ -538,8 +538,8 @@ inc/allocs_14.F: grid%tail_statevars%DataName = 'T2_PEAK'               # 运行
 be8d09e4d23b333785621e5c4a309ced  main/wrf.exe                          # 新 exe（md5 已变）
 ```
 
-- **649 秒（≈10.8 分钟）**、**224 个对象**重编、四个 exe 全部重链——这是"注册一个新变量"的完整代价；
-- `t2_peak` 在生成物中的三处落地证据齐备（域字段、分配代码、状态表登记——第 4 章"一行声明，六处生成"的实证）。**注意**：B1 只增加了声明，还没有任何计算或赋值的 Fortran 代码——所以此时的 `T2_PEAK` 虽然被分配、被登记，值恒为未初始化。给它"生命"（赋值逻辑 + 输出验证）是第 20 章一级实战的内容。
+- **649 秒（≈10.8 分钟）**、**224 个对象**重编、四个 exe 全部重链——这是“注册一个新变量”的完整代价；
+- `t2_peak` 在生成物中的三处落地证据齐备（域字段、分配代码、状态表登记——第 4 章“一行声明，六处生成”的实证）。**注意**：B1 只增加了声明，还没有任何计算或赋值的 Fortran 代码——所以此时的 `T2_PEAK` 虽然被分配、被登记，值恒为未初始化。给它“生命”（赋值逻辑 + 输出验证）是第 20 章一级实战的内容。
 
 **B2（完全还原）**：
 
@@ -552,7 +552,7 @@ frame/module_state_description.F: OK
 inc/i1_decl.inc: OK
 ```
 
-- 还原 + 全链重编同样 **649 秒 / 224 个对象**，四个 exe 与四个抽查生成物的 md5 **全部**回到原始值——改造实验的"回归基线"操作流程由此闭环。
+- 还原 + 全链重编同样 **649 秒 / 224 个对象**，四个 exe 与四个抽查生成物的 md5 **全部**回到原始值——改造实验的“回归基线”操作流程由此闭环。
 
 ### 5.5.4 实测数字汇总与预算直觉
 
@@ -564,8 +564,8 @@ inc/i1_decl.inc: OK
 
 由此建立三条预算直觉（用于第 20 章与论文2 开发循环）：
 
-1. **诊断类小改动的循环是"分钟级"**：改叶节点 → 1~2 分钟拿到新 exe（含链接时间）；一天做几十次迭代完全可行；
-2. **碰 Registry 的改动是"十几分钟级"**：一旦引入新变量（无论是否为它写代码），每次迭代都要付 224 对象 + 10 分钟的代价。"变量已注册"后继续改 Fortran 代码，如果不动 Registry 本身、也不必重生成……**注意**：`touch Registry/Registry` 一旦执行就会全链重编；反之只要 Registry 没被动过，后续改的 Fortran 文件都只走增量路径；
+1. **诊断类小改动的循环是“分钟级”**：改叶节点 → 1~2 分钟拿到新 exe（含链接时间）；一天做几十次迭代完全可行；
+2. **碰 Registry 的改动是“十几分钟级”**：一旦引入新变量（无论是否为它写代码），每次迭代都要付 224 对象 + 10 分钟的代价。“变量已注册”后继续改 Fortran 代码，如果不动 Registry 本身、也不必重生成……**注意**：`touch Registry/Registry` 一旦执行就会全链重编；反之只要 Registry 没被动过，后续改的 Fortran 文件都只走增量路径；
 3. **时间花在哪里**：链接四个 50~80 MB 的 exe 及并行调度占大头；`-j` 越大收益越接近饱和（节点内存与磁盘 I/O 是上限）。
 
 ### 5.5.5 开发循环自查清单
@@ -577,7 +577,7 @@ inc/i1_decl.inc: OK
 3. **判断是否碰了 Registry**：碰了 → 先 `touch Registry/Registry`（或按 §5.2.4），准备好 ~11 分钟；没碰 → 直接下一步；
 4. **编译**：`tcsh ./compile em_real -j 8`（本教材口径）；
 5. **核对对象与耗时**：从日志确认重编面（`find . -name '*.o' -newer <stamp>` 的用法见实验脚本）；
-6. **verification**：至少跑一个**不需要外部数据**的理想算例冒烟（§5.4），再用 md5/诊断量确认行为差异方向——"零差异改动"（如注释、重构）应当出现 exe md5 相同或数值完全相同的结果；
+6. **verification**：至少跑一个**不需要外部数据**的理想算例冒烟（§5.4），再用 md5/诊断量确认行为差异方向——“零差异改动”（如注释、重构）应当出现 exe md5 相同或数值完全相同的结果；
 7. **回归**：还原源文件 + `touch Registry/Registry`（若动过）→ 重编 → 校验 exe md5 回到基线（B2 流程）。
 
 ---
@@ -588,15 +588,15 @@ inc/i1_decl.inc: OK
 |---|---|---|
 | 新增的 Registry 变量在生成物里找不到、编译却不报错 | §5.2.4 触发陷阱：`Registry/Registry` 没变新，`tools/registry` 根本没跑 | `touch Registry/Registry` 后重编（dry-run 验证：`make -n -i -r em_real \| grep tools/registry`） |
 | 编译中途失败后 `main/*.exe` 不见了 | `compile` 的 `$ZAP` 机制：先删后建，失败即空窗 | 事先备份 exe；修复后重编即恢复（还原被污染对象的方法：touch 对应源文件再编） |
-| 链接期报 `GLIBC_2.xx not found` 类错误 | 编译环境与运行/链接环境不一致（如工具链来自更新的容器、却在旧宿主上链接） | 见配套手册"容器"节：编译与链接必须在同一环境内完成 |
+| 链接期报 `GLIBC_2.xx not found` 类错误 | 编译环境与运行/链接环境不一致（如工具链来自更新的容器、却在旧宿主上链接） | 见配套手册“容器”节：编译与链接必须在同一环境内完成 |
 | `./compile` 报 `tcsh: not found` | `compile` 是 tcsh 脚本 | 安装/解包 tcsh（配套手册有离线方案） |
 | cmake 路线编译后找不到 `wrf.exe` | cmake 产物**无 `.exe` 后缀**且安装在 `install/bin/` | 去 `install/bin/wrf`；运行在 `install/test/<case>/` |
 | 同一棵树先传统后 cmake，行为混乱 | 两套体系的对象/生成物规则不同，混用会互相污染 | 一次一种；cmake 路线用独立 `_build*` 目录 |
-| 改了一个"小文件"却重编很多对象 | Fortran module 依赖传播（§5.2.3） | 属正常现象；用 `main/depend.common` 预判传播面；把改动尽量放叶节点 |
-| `./compile` 打印"You set the number of processors above 20"并回退为 `-j 2` | `compile` 脚本对 `-j` 只接受 2–20（源码实测：`second_word >= "2" && <= "20"`） | 用 `-j 8`/`-j 16` 这类**≤20** 的值；更细的并行控制交给 `make` 或 cmake 路线。想真正提速就别靠 `-j` 数字堆高——见下条 |
-| 以为要等很久，结果 `./compile em_xx` 几十秒就完成 | 该树里已有上一次构建留下的全部 `.o`，`./compile em_xx` 只做"重链接 + 装目录"（IDEAL_CASE 相同的算例之间几乎无新编译） | 属正常；用 `ls -l main/*.exe` 的时间戳与 `find . -name '*.o' -newer <stamp> \| wc -l` 核实实际重编量（ch05 §5.3 的方法） |
+| 改了一个“小文件”却重编很多对象 | Fortran module 依赖传播（§5.2.3） | 属正常现象；用 `main/depend.common` 预判传播面；把改动尽量放叶节点 |
+| `./compile` 打印“You set the number of processors above 20”并回退为 `-j 2` | `compile` 脚本对 `-j` 只接受 2–20（源码实测：`second_word >= “2” && <= “20”`） | 用 `-j 8`/`-j 16` 这类**≤20** 的值；更细的并行控制交给 `make` 或 cmake 路线。想真正提速就别靠 `-j` 数字堆高——见下条 |
+| 以为要等很久，结果 `./compile em_xx` 几十秒就完成 | 该树里已有上一次构建留下的全部 `.o`，`./compile em_xx` 只做“重链接 + 装目录”（IDEAL_CASE 相同的算例之间几乎无新编译） | 属正常；用 `ls -l main/*.exe` 的时间戳与 `find . -name '*.o' -newer <stamp> \| wc -l` 核实实际重编量（ch05 §5.3 的方法） |
 
-> 注：以上速查只收编译体系相关的机制性条目；具体到本集群的环境配置错误（含 glibc/tcsh/容器相关）已在配套手册"速查"章覆盖，本书不重复。
+> 注：以上速查只收编译体系相关的机制性条目；具体到本集群的环境配置错误（含 glibc/tcsh/容器相关）已在配套手册“速查”章覆盖，本书不重复。
 
 ---
 
@@ -622,3 +622,59 @@ inc/i1_decl.inc: OK
 | `E_B1_registry_cmd.txt` | dry-run 中 `tools/registry` 命令行原文 |
 | `md5_exe_orig.txt` / `md5_gen_orig.txt` | exe 与生成物的原始 md5 基线 |
 | `E_rrtmg_lw.F.orig` / `E_EM_COMMON.orig` | 实验前源文件备份（还原用） |
+
+---
+
+## 5.8 补充专栏【科研改造案例库】：构建层三案
+
+### 案例一　MMM 共享物理库：一份物理代码服务三个模式
+
+- **课题**：跨模式物理复用——NCAR MMM 实验室推动同一套物理方案在 **WRF / MPAS / CCPP**（NOAA 的通用物理框架）三处运行，消除“同一方案两份代码、改 WRF 忘改 MPAS”的漂移；
+- **改造对象与原代码 vs 修改后**（情况①：改动已并入官方源码，可逐文件对照）：
+  - **原布局**：`phys/module_cu_ntiedtke.F`、`phys/module_bl_ysu.F`、`phys/mp_wsm6.F` 等直接放在 `phys/` 顶层，WRF 专有；
+  - **修改后（4.6–4.7 分批完成）**：这五件套（修订 MM5 面层、New Tiedtke、WSM6、YSU、GWDO；4.7 再加 Shin-Hong）移入 **`phys/physics_mmm/`** 并改 `.F90` 后缀——本地树实测：`phys/physics_mmm/` 下有 `bl_ysu.F90`、`bl_shinhong.F90`、`bl_mynn.F90`、`bl_gwdo.F90`、`cu_ntiedtke.F90`、`mp_wsm6.F90`、`mp_radar.F90`、`mynn_shared.F90`，**还带一个 `Makefile.mpas`**（1.3 KB，MPAS 构建入口）——“跨模式”三个字落成了文件；
+  - `phys/Makefile` 的 MYNN 条目（本地 line 460–468）展示了子模块装配模式：编译期把 `MYNN-EDMF/module_bl_mynnedmf.F90` 符号链接成 `phys/module_bl_mynnedmf.F`——“仓库里的文件”和“编译看到的文件”是两回事（ch05 §5.2 讲过生成物，这里是同一思想的物理版）；
+- **教学点**：4.6 notes 的原文措辞是 *from the future shared MMM-physics repository*——官方把“物理共享化”当长期方向。**你自己写的物理改进若想发布，把代码写成“不依赖 WRF 内部类型”的独立 .F90（方案内自带公共常数模块）是上游化的第一步**；第 14 章 MYNN-EDMF 三件套（`module_bl_mynnedmf.F90` + `WRF/` + `MPAS/`）就是成品样板。
+
+### 案例二　CMake 构建路线（4.6 起）：双轨的另一轨
+
+- **课题**：现代构建系统集成（IDE 支持、依赖管理、跨平台检查）；
+- **改造内容**：`cmake/` 目录（本地实测含 `confcheck.cmake`、`wrf_case_setup.cmake`、`wrf_get_version.cmake` 等）+ `doc/README.cmake_build` 官方说明；起步覆盖 em_real/em_ideal，随后版本逐步纳入 chem、wrfplus、hydro（4.7 notes 可查）；
+- **原代码 vs 修改后**：情况③——configure+make 双轨**并存**，官方未宣布替换；选型建议与双轨对比见本章 §5.3；
+- **教学点**：改 CMake 层的科研场景通常是“把自家依赖库加进 find 流程”——改 `cmake/modules/` 的查找模块，而不是碰 `arch/configure.defaults`；两条路线的编译选项必须**人肉保持一致**（ 本书 §5.3.4 的选项表就是核对基准）。
+
+### 案例三　物理子模块工作流：课题组如何维护“自己的物理”
+
+- **课题**：课题组长期维护一套修改过的物理方案（例如本书 4.8.0 里的 MYNN-EDMF，就是 NCAR 以 `github.com/NCAR/MYNN-EDMF` 独立发布的子模块）；
+- **改造内容**（4.4 起的子模块制 + 4.7 的 manage_externals）：WRF 顶层 Makefile 对 NoahMP / MYNN-EDMF / MYNN-SFC 做**硬检查**（文件缺失 → `exit 31`），物理源文件编译期经符号链接进入 `phys/`；
+- **原代码 vs 修改后**：情况③（流程描述）。两条实操路线：① fork 官方物理仓库 → 改 → 在子模块/符号链接层接回（需要 git 工作流）；② **本书 ch20 的补丁脚本流**（`.orig` 备份 + 幂等补丁 + 断言唯一锚点）——不需要 git 历史也能在共享沙箱上安全改造；
+- **教学点**：本书所有集群实验（ch19 的一行补丁、ch20 三级补丁）都是路线②的实例；路线①适合长期开发，路线②适合“快速实验 + 完整留档”。两者的生成物核验手段完全一致（§5.5.5 自查清单）。
+
+## 5.9 补充专栏【模块依赖树】：一次 `./compile em_real` 的完整依赖链
+
+> 把 §5.2 的构建流水线重画成**依赖树**（谁触发谁），并把 ch20 踩过的两个陷阱标在树上——以后再遇到“编过了但没编对”，按图索骥。
+
+```text
+./compile em_real -j N                （tcsh 脚本：环境检查 → Registry 拼装 → 递归 make）
+├─ [脚本内] Registry/Registry 的拼装
+│    判据 = Registry.EM 与 Registry 的 mtime 序位（或 Registry 缺失）
+│    ★陷阱⑥：只改 Registry.EM_COMMON 不会触发重拼 → tools/registry 不重跑 → inc/ 陈旧
+│    处置：touch Registry/Registry.EM（或 touch Registry/Registry）
+├─ external/（io_netcdf、io_int、esmf_time、RSL_LITE…）
+├─ tools/ → registry 可执行（串行 C 编译）
+│    └─ 运行后刷新 inc/*.inc 全家族（mtime 更新 = 下游大面积重编的根源）
+├─ frame/Makefile
+│    ├─ module_state_description.F : ../Registry/Registry   ← registry 工具的触发规则
+│    ├─ md_calls.inc : md_calls.m4                          ← ★陷阱⑤：容器缺 m4 时
+│    │        生成 0 字节文件 → module_io.o 语法错 → 无 wrf.exe
+│    │        处置：cp arch/md_calls.inc frame/（官方无 m4 回退）
+│    └─ include ../main/depend.common（98 KB 依赖表：.o ← .mod 的全映射）
+├─ share/ → dyn_em/ → phys/ → main/（各目录 Makefile 递归）
+└─ main/ 链接四个 exe（wrf/real/ndown/tc）+ run/ 目录符号链接装配
+```
+
+**读树三则**：
+
+1. **两处“时间戳门”**（★）都在 frame/Makefile 与 compile 脚本层——它们失效时的共同症状是 `rc=0` 但产物错/缺；**构建问题的排查顺序永远是：环境工具（m4/tcsh）→ 时间戳门 → 生成物抽查（grep inc/）→ 日志中的 (ignored)**；
+2. **`main/depend.common` 是“哪些对象要重编”的账本**：`.o` 依赖 `.mod`，而 `.mod` 又依赖 `inc/` 生成物——Registry 一变，这张表把全链点燃（§5.5.3 实测 224 对象 / 10 分钟）；
+3. **clean 的作用域**：`./clean` 删 `.o/.mod/.f90/.inc/exe` 与 **`Registry/Registry` 本身**（clean 脚本实测），但不删 `frame/md_calls.inc` 之外的手工回退文件——所以“clean 之后第一次编译”的环境（m4！）与“增量编译”不同，ch20 陷阱⑤正是发生在 clean 后的首次编译。

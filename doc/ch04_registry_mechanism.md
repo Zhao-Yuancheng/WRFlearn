@@ -36,9 +36,9 @@
 | 构建触发规则（传统） | `frame/Makefile` | `module_state_description.F : ../Registry/$(REGISTRY)` |
 | 构建触发规则（cmake） | `tools/CMakeLists.txt` | `registry ${REGISTRY_DEFS} -DNEW_BDYS ${REGISTRY_FILE}` |
 | 通信代码生成来源 | `arch/postamble`、`external/RSL_LITE/gen_comms.c` | `gen_comms_rsllite` 规则 |
-| 生成物使用者（例） | `frame/module_domain_type.F` | `#include "state_subtypes.inc"`、`#include "state_struct.inc"` |
-| 生成物使用者（例） | `frame/module_domain.F` | `alloc_space_field`、`dealloc_space_field` 内 `#include "allocs.inc"`/`"allocs_calls.inc"`/`"deallocs.inc"` |
-| 生成物使用者（例） | `share/solve_interface.F` | `# include "actual_new_args.inc"` |
+| 生成物使用者（例） | `frame/module_domain_type.F` | `#include “state_subtypes.inc”`、`#include “state_struct.inc”` |
+| 生成物使用者（例） | `frame/module_domain.F` | `alloc_space_field`、`dealloc_space_field` 内 `#include “allocs.inc”`/`“allocs_calls.inc”`/`“deallocs.inc”` |
+| 生成物使用者（例） | `share/solve_interface.F` | `# include “actual_new_args.inc”` |
 | 集群构建树实测 | `build/WRF/inc/`、`build/WRF/frame/` | `*.inc` 共 480 个；`module_state_description.F`；`nl_get_*`/`nl_set_*` |
 
 ### 读者前置
@@ -150,7 +150,7 @@ include registry.fire
 | 6 | `NumTLev` | 时间层数（`u/v/w/t` 等预报量为 2；诊断量 1；土壤等为 `-` 表示非时间推进量） |
 | 7 | `Stagger` | 网格分位：`X`/`Y`/`Z` 或组合（`XZ`）；`-` 为质量点非分位（交错网格在 ch10/ch21 详讲） |
 | 8 | `IO` | **IO 字母串**（本章重头戏，见 4.2.3） |
-| 9 | `DNAME` | 输出名：写进 wrfout 的 netCDF 变量名（如 `"T2"`）；`-` 表示不参与 IO |
+| 9 | `DNAME` | 输出名：写进 wrfout 的 netCDF 变量名（如 `“T2”`）；`-` 表示不参与 IO |
 | 10 | `DESCRIP` | 人类可读描述（wrfout 变量属性 `description`） |
 | 11 | `UNITS` | 单位（wrfout 变量属性 `units`） |
 
@@ -367,7 +367,7 @@ flowchart TD
       $(FC) -o $@ -c ... yy0.f90
   ```
 
-  注意 `frame/nl_access_routines.F` 全文只有一行：`#include "nl_config.inc"`。**源码树里同名的 `frame/nl_get_0_routines.F` 是内容为 `dummy; make needs this to be happy` 的占位文件**——真正的代码永远来自 cpp 产物。你在构建树里若看到这 16 个 `.F` 文件，别误以为它们是手写源码。
+  注意 `frame/nl_access_routines.F` 全文只有一行：`#include “nl_config.inc”`。**源码树里同名的 `frame/nl_get_0_routines.F` 是内容为 `dummy; make needs this to be happy` 的占位文件**——真正的代码永远来自 cpp 产物。你在构建树里若看到这 16 个 `.F` 文件，别误以为它们是手写源码。
 
 > **Registry 关联**：本节全部生成物来自 `tools/gen_config.c`；**namelist 关联**：这就是 `namelist.input` 一切参数的“进城路线”。第 7 章逐项讲 `namelist.input` 时，每一行的合法性都可以回到这里的 rconfig 记录。
 
@@ -464,7 +464,7 @@ real      ,DIMENSION(...)  :: rv_tendf
 real      ,DIMENSION(...)  :: ww1
 ```
 
-注意维度边界写作 `grid%sm31:grid%em31`——**用它自己的域对象描述自己的存储**，这是 Fortran 自动数组与 WRF 域结构的经典配合。`solve_em.F` 里紧邻 `#include "i1_decl.inc"` 的注释解释了动机（原文）：
+注意维度边界写作 `grid%sm31:grid%em31`——**用它自己的域对象描述自己的存储**，这是 Fortran 自动数组与 WRF 域结构的经典配合。`solve_em.F` 里紧邻 `#include “i1_decl.inc”` 的注释解释了动机（原文）：
 
 ```text
 ! Previous time level of tracer arrays now defined as i1 variables;
@@ -848,3 +848,71 @@ module_state_description.F  方案号与 4D 索引常量
 ---
 
 *本章完。下一章：编译体系与增量重编译——你即将亲手把上面的“纸面设计”送进编译器。*
+
+---
+
+## 4.8 补充专栏【科研改造案例库】：Registry 级三案
+
+### 案例一　CLWRF 诊断族：一次“成功上游化”的 Registry 改造
+
+- **课题**：区域气候模拟（CLWRF = Climate Limited-area WRF；WRF4G 工作流项目，L. Fita 等）；
+- **需求**：区域气候运行需要“每个诊断输出区间内的**统计量**”（最大/最小/平均/标准差及其出现时刻），而不是瞬时快照；
+- **改造对象与原代码 vs 修改后**（情况①：**已并入官方 4.8.0 源码**，可直接读）：
+  1. `Registry/Registry.EM_COMMON`——原版无此块，改造后新增 `# CLWRF-WRF4G` 块（本地 1759 行起），约 24 个 state 记录、统一走 `rh3`（auxhist3 流）。摘录（原文照抄）：
+
+```text
+# CLWRF-WRF4G
+state    real  T2MIN            ij      misc        1         -      rh3      "T2MIN"                 "MINIMUM TEMPERATURE AT 2M HEIGHT IN DIAGNOSTIC OUTPUT INTERVAL"                      "K"
+state    real  T2MAX            ij      misc        1         -      rh3      "T2MAX"                 "MAXIMUM TEMPERATURE AT 2M HEIGHT IN DIAGNOSTIC OUTPUT INTERVAL"                      "K"
+state    real  TT2MIN           ij      misc        1         -      rh3      "TT2MIN"                "TIME OF MINIMUM TEMPERATURE AT 2M HEIGHT IN DIAGNOSTIC OUTPUT INTERVAL"             "minute"
+state    real  TT2MAX           ij      misc        1         -      rh3      "TT2MAX"                "TIME OF MAXIMUM TEMPERATURE AT 2M HEIGHT IN DIAGNOSTIC OUTPUT INTERVAL"             "minute"
+...
+```
+
+  2. `phys/module_diag_cl.F`——新增模块，核心子程序 `clwrf_output_calc`（本地 line 14 起）：哑元表自带 `clwrfH`（诊断区间小时数）与全部 `*clmin/*clmax/*clmean/*clstd` 字段，内部用 `module_dm` 的 `wrf_dm_sum_real/wrf_dm_maxval` 做并行归约。该子程序由 `phys/module_diagnostics_driver.F` 在 `output_diagnostics=1` 时调用，**每输出区间重置**；
+- **与本书 ch20 一级的对照**（重要）：同为“2 m 气温统计量”，CLWRF 的 `T2MAX` 是**区间重置**版（rh3 流 + 驱动器调度 + 独立 diag 模块），本书 `T2_PEAK` 是**自初始化以来不重置**版（rhd 流 + 手写清零/更新点）。两条路线的取舍详见 ch20 §20.2.1——**改造方案没有标准答案，只有与需求匹配的答案**；
+- **教学点**：CLWRF 展示了“研究改造成品”的最高归宿——**进入官方源码**。它的 Registry 用法（成批同构 state + 专用 diag 模块 + rconfig 开关）是值得照抄的模板。
+
+### 案例二　CORDEX-WRF 诊断模块（4.8.0 release notes 中的 PR #2245/#2322）
+
+- **课题**：CORDEX 降尺度共同体需要的标准化输出（约 150 个诊断量）；
+- **改造内容**：新增 namelist 节 **`&cdxwrf`** 与三个输出通道：`auxhist19`（主文件 wrfcdx）、`auxhist18`（高频 10 min，rain/colmax，用于对流系统追踪）、`auxhist23`（气压层插值 wrfpress）；学术出处 Fita et al. 2019 (GMD, 12, 1029–1066)；
+- **本地核验提示**：本教材写作时在 tarball 中未检索到 cdxwrf 命名的源文件（**待核**，可能随包方式不同）——请以 GitHub PR #2245/#2322 为准；
+- **教学点**：auxhist 高位流（18/19/23）+ 专用 namelist 节，是“大包诊断”的官方通道；ch09 的 auxinput/auxhist 机制表在这里被真实项目用满。
+
+### 案例三　registry.noahmp：Registry 本身的“分治”改造
+
+- **课题**：NoahMP 陆面方案变量众多（4.0 起独立成库）；
+- **改造内容**：把 NoahMP 的变量从 `Registry.EM_COMMON` 拆到独立文件 **`Registry/registry.noahmp`**（本地已核，43 402 字节），由 include 树挂回主 Registry（ch04 §4.2 的 include 树图）；
+- **原代码 vs 修改后**：情况③——这是**纯维护性重构**（无行为变化），但从 ch20 的“Registry 触发门”教训看，它与物理改造同样走全链重编；
+- **教学点**：当你自己的改造需要加几十个变量时，学 NoahMP **开一个 `registry.mycase` include 文件**，比把 EM_COMMON 越改越长更可维护。
+
+## 4.9 补充专栏【模块依赖树】：registry 生成器（tools/）的分工树
+
+> `tools/` 下约 17 个 C 源文件构成一个“小型编译器”。树按**数据流**画：解析 → 内部表示 → 各生成器（对应 `tools/Makefile` 的 OBJ 清单，全部本地实测）。
+
+```text
+【解析层】                        【内部表示】
+registry.c  ──── 驱动与流水线 ──► data.c / type.c        （变量表/类型系统）
+reg_parse.c ──── 词法+语法解析                    misc.c / my_strtok.c（字符串工具）
+（读 Registry include 树）
+        │
+        ▼ 按 gen_*.c 分发（每个生成器负责一族 .inc/.F 生成物）
+├─ gen_defs.c / gen_mod_state_descr.c ──► 域类型字段（state_struct.inc）、
+│                                          module_state_description.F（常量/包）
+├─ gen_allocs.c / gen_scalar_derefs.c ──► allocs_N.F / deallocs_N.F（分配/释放/状态表）
+├─ gen_config.c                        ──► nl_config.inc + namelist_*.inc（rconfig 读写链）
+├─ gen_wrf_io.c                        ──► IO 位掩码/打包（wrf_io_flags.h、pack 相关）
+├─ gen_scalar_indices.c                ──► 标量索引（scalar_indices inc 族）
+├─ gen_args.c                          ──► actual_args.inc / actual_new_args.inc（solve 实参）
+├─ gen_interp.c                        ──► 嵌套插值（nest_*.inc / interp_*.inc 族）
+├─ gen_streams.c                       ──► 流表（streams.h、switches_and_alarms.inc）
+└─ gen_model_data_ord.c                ──► 模型数据次序表
+（通信代码特殊：gen_comms 由 external/RSL_LITE 提供——见 §4.4 生成物地图）
+```
+
+**读树三则**：
+
+1. **改 Registry 行后“该查哪个生成物”由这棵树决定**：加 state → 先查 gen_defs/gen_allocs 的产物（`state_struct.inc`/`allocs_N.F`）；加 rconfig → 只查 gen_config 的产物（`nl_config.inc`）；IO 位错 → gen_wrf_io/streams（ch20 §20.2.3 六点自检正是按此编排）；
+2. **生成器之间靠 data.c 的变量表解耦**——所以 Registry 的每一列语法错误会同时“惊动”多个生成器，报错却常出现在最下游；排错回到 `reg_parse.c` 的语法定义（ch04 §4.3）；
+3. **registry 程序本身也要编译**（`tools/Makefile`，串行 C 编译器）——它不随 MPI 环境走，容器/集群上“tools 编不出来”是独立故障类（ch05/ch20 有实录）。

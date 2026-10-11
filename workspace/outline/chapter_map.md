@@ -242,3 +242,17 @@
 - 脚本：workspace/scripts/ch19_diagnose.py、ch19_gen_main.py、ch19_gen_namelists.py、ch19_probe_urb.py；集群脚本 workspace/cluster/ch19/*.sh（十余件）；日志 workspace/logs/ch19_diagnose.log
 - 素材底稿：workspace/context/ch19_material.md（含排错链、补丁版本账、探针数据）
 - 下一章：ch20 改造 WRF 三级实战（第三级 = 论文2 BEM 逐格参数场实录；本章的一行补丁正是引子）
+
+### ch20 改造 WRF 三级实战 —— 已核验（2026-10-11）
+交付：`doc\ch20_modifying_wrf.md`（含 §20.7.1 全书改造案例总索引 27 案）
+- 三级全链实测（构建 439963 → 运行 439976 六跑 rc=0 → 抽取 24 文件 → 诊断 3 图；详见 verify_log ch20 段）
+- L1：Registry+start_em+solve_em 三处补丁（T2_PEAK=rhd）；**L1a↔L1b 十二变量位级一致**（非扰动铁证）；ch04 §4.5 六点自检全中
+- L2：MYNN GET_PBLH 的 delt_thv 一行（0.5/1.25/2.5）；域均 PBLH 1199/1635/1902 m 单调；逐点违例 0.83–3.10%（稳定层混合）
+- L3：ALBROF_2D（i0rh）+ use_bem_2d_albedo 开关 + 五文件传参链（Registry→first_rk_step_part1→surface_driver→noahdrv→bep_bem→BEP1D）；TS_URB 东组开−关时均 −2.85 K（正午 min −6.67 K）、西组（=表值对照）−0.089 K
+- 事故链七条（①LD_LIBRARY_PATH 全局污染 ②lsm/lsm_mosaic 锚点 ③陈旧对象 ④Noah-MP 调用点 ⑤容器缺 m4 ⑥Registry 触发门 ⑦容器内 ncks 静默失败 + libnco + DataName=TS_URB）
+- 关键方法论沉淀：**Registry DataName ≠ 变量名**（wrfout 用 DataName）；IO 字母串 `rhd=(...)u=(...)` 语法合法；"应当不变"三级检验设计
+- 图：doc/figs/ch20_L1_diag.png、ch20_L2_pblh.png、ch20_L3_albedo.png
+- 脚本：workspace/scripts/ch20_diagnose.py、ch20_inject_albrof.py；集群脚本 workspace/cluster/ch20/*.sh（patch×3/rebuild2/runall/extract2/fixL3 等）；日志 workspace/logs/ch20_diagnose.log
+- 素材底稿：workspace/context/ch20_material.md（三级设计、事故链、输入指纹、构建 v2/v3 全账）
+- 同日全书补充：ch01/ch02 交付；ch03–ch19 三类专栏（科研改造案例库/模块依赖树/核心代码）；ch20 §20.7.1 案例总索引
+- 下一章：ch21 solve_em.F 全流程（第 V 部）；随后附录 a–d 与 index.md
