@@ -975,9 +975,9 @@ $$\text{zdhpbl}=3925,\quad \text{zdh}=53997\ (\Delta T=0.5\ \mathrm{K},\ \Delta 
 
 - **课题**：飑线传播速度偏慢（对流云的动量垂直输送缺位）；
 - **改造内容**（4.2 notes）：按 Zhang & McFarlane (1995) 给 MSKF 加 **CMT**（convective momentum transport），`cmt_opt_flag` 控制且默认开启——改善风暴与飑线传播及水平风场；
-- **收录方式**：情况①·**已上游化**——改造代码已并入官方发布版，`source/` 下的 `phys/module_cu_mskf.F` 就是**改造后**的状态：文件头第 5 行署名 `!JTR = Jacob Radford, NCSU`，第 18 行特性清单列明"（7）Inclusion of Convective Momentum Transport (CMT): Zhang&McFarlane, JGR, 100, 1995"；`cmt_opt_flag` 是**硬编码逻辑量**（声明处注释 `!JTR: CMT on by default`，直接赋 `.TRUE.`，不进 namelist）；
+- **收录方式**：情况①·**已上游化**——改造代码已并入官方发布版，`source/` 下的 `phys/module_cu_mskf.F` 就是**改造后**的状态：文件头第 5 行署名 `!JTR = Jacob Radford, NCSU`，第 18 行特性清单列明“（7）Inclusion of Convective Momentum Transport (CMT): Zhang&McFarlane, JGR, 100, 1995”；`cmt_opt_flag` 是**硬编码逻辑量**（声明处注释 `!JTR: CMT on by default`，直接赋 `.TRUE.`，不进 namelist）；
 - **“原本的代码块”去哪了**：只在 **4.1 及更早版本**（GitHub 历史 / 旧 release tarball）——对已上游化的案例，diff 的左半边要回 Git 史找，这是读官方源码树的通用姿势；
-- **官方出处**：WRF 4.2 release notes（2020-04-23）原文："Added Zhang and McFarlane (JGR, 100, 1995) convective momentum transport (CMT) to the MSKF scheme (improves speed of propagation of storms and squall lines and associated changes in horizontal winds components). The option is controlled by cmt_opt_flag inside module_cu_mskf.F, and turned on."
+- **官方出处**：WRF 4.2 release notes（2020-04-23）原文：“Added Zhang and McFarlane (JGR, 100, 1995) convective momentum transport (CMT) to the MSKF scheme (improves speed of propagation of storms and squall lines and associated changes in horizontal winds components). The option is controlled by cmt_opt_flag inside module_cu_mskf.F, and turned on.”
 - **教学点**：**积云方案的“动量”比“热量水汽”年轻得多**——翻旧文献的参数化对比时，动量项的有无比闭合形式差异更容易造成系统性风场差；另一面是**改造的生命周期**：1995 年的文献 → 2019 年 NCSU 的实现（源码注释日期 06/26/19）→ 2020 年 4.2 收编——今天的“案例”就是明天的“官方默认”。
 
 ### 案例二　New Tiedtke 尺度自适应（4.5）：给对流闭合装“格距表”
@@ -990,5 +990,5 @@ $$\text{zdhpbl}=3925,\quad \text{zdh}=53997\ (\Delta T=0.5\ \mathrm{K},\ \Delta 
 ### 案例三　BMJ 云-辐射反馈（4.2）与 GFL（4.8）：两个“外围接口”方向
 
 - **课题**：①BMJ 的次网格云场对短波的反馈（Koh & Fonseca 2016 QJRMS；`bmj_rad_feedback`，建议配 WDM 系微物理 + RRTMG）；②Grell–Freitas 积云的 GFL 升级（气溶胶-对流交互改进、冷池简化参数化、下沉扩展的尺度感知；跨三框架实现）；
-- **收录方式**：均为情况①·已上游化（`bmj_rad_feedback` 开关自 4.2 起在源码内；GFL 于 4.8 并入官方，见其 PR——`bmj_rad_feedback` 的开关默认关闭，属"官方改造留下的接口"）；
+- **收录方式**：均为情况①·已上游化（`bmj_rad_feedback` 开关自 4.2 起在源码内；GFL 于 4.8 并入官方，见其 PR——`bmj_rad_feedback` 的开关默认关闭，属“官方改造留下的接口”）；
 - **教学点**：积云方案的改造前沿在**接口**（辐射反馈、气溶胶、动量、尺度感知）而不是“再造一个闭合”——立项时优先检查官方是否已有同名开关。

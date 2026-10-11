@@ -454,33 +454,33 @@ L3 第一版补丁给 `BEP_BEM` 加了**非可选**哑元 `ALBROF_2D`，链接�
 |---|---|---|---|
 | 驱动 | WRFPLUS：4DVar/敏感性 → 整套驱动层切线性/伴随复制 | 情况③ | ch03 §3.9 |
 | 驱动 | WRF-Hydro：陆水文耦合 → 新顶层目录 + 最小切口 | 情况③ | ch03 §3.9 |
-| 驱动 | 本书 L1：高温监测 → solve_em/start_em/Registry 三处 | **情况①（本书全链）** | ch20 §20.2 |
-| Registry | CLWRF：区域气候诊断 → EM_COMMON 24 state + module_diag_cl | 情况①（已上游） | ch04 §4.8 |
-| Registry | CORDEX-WRF：降尺度标准输出 → &cdxwrf + auxhist18/19/23 | 情况①/③ | ch04 §4.8 |
+| 驱动 | 本书 L1：高温监测 → solve_em/start_em/Registry 三处 | **情况①·未上游化（本书全链原创）** | ch20 §20.2 |
+| Registry | CLWRF：区域气候诊断 → EM_COMMON 24 state + module_diag_cl | 情况①·已上游化 | ch04 §4.8 |
+| Registry | CORDEX-WRF：降尺度标准输出 → &cordex（output_cordex）+ auxhist18/19/23 | 情况①·已上游化 | ch04 §4.8 |
 | Registry | registry.noahmp：变量分治 → 独立 include 子文件 | 情况③ | ch04 §4.8 |
-| 构建 | MMM 共享物理库：跨模式复用 → phys/physics_mmm 五件套 | 情况① | ch05 §5.8 |
+| 构建 | MMM 共享物理库：跨模式复用 → phys/physics_mmm 五件套 | 情况①·已上游化 | ch05 §5.8 |
 | 构建 | CMake 路线 / 物理子模块工作流（MYNN-EDMF 样板） | 情况③ | ch05 §5.8 |
 | WPS | 城市数据集接入 GEOGRID.TBL（NUDAPT/y2050/ahe） | 配置级 | ch06 §6.10 |
 | WPS | WPS #281：4.8 地形拖曳的 var2 场 | 情况③ | ch06 §6.10 |
-| real | use_sh_qv：水汽直用开关（RH 往返 → 双路径） | 情况① | ch07 §7.9 |
+| real | use_sh_qv：水汽直用开关（RH 往返 → 双路径） | 情况①·已上游化 | ch07 §7.9 |
 | real | ERA5 地形平滑 fatal 化（静默失败 → 显式报错） | 情况③ | ch07 §7.9 |
 | 运行 | DFI 平行节拍（wrf_dfi_* / jcdfi_*） | 情况③ | ch08 §8.9 |
 | 运行 | 4.8 两 critical fix（restart 挂起 / auxinput 崩溃） | bug 档案 | ch08 §8.9 |
 | IO | netCDF4 并行压缩写（4.4） | 情况③+实测 | ch09 §9.10 |
-| IO | 本书 L3：参数场走输入流 0（ALBROF_2D=i0rh） | **情况①（本书全链）** | ch20 §20.4 |
+| IO | 本书 L3：参数场走输入流 0（ALBROF_2D=i0rh） | **情况①·未上游化（本书全链原创）** | ch20 §20.4 |
 | 坐标 | hybrid_opt 默认化 / use_theta_m 默认化 | 情况③+源码 | ch10 §10.13 |
-| 成分 | Thompson 气溶胶感知（qnwfa/qnifa）/ aercu / SSP 档案 | 情况① | ch11 §11.11 |
-| 辐射 | cldovrlp=5 / Goddard 接入 / 时变温室气体 | 情况①/③ | ch12 §12.11 |
-| 微物理 | Thompson mp38 / NSSL 三矩 / RCON+TEMPO / WDM6 bug | 情况① | ch13 §13.11 |
-| PBL | 本书 L2：delt_thv 一行改 | **情况①（本书全链）** | ch20 §20.3 |
-| PBL | EEPS/k-ε-θ² / Shin-Hong 并 YSU / MYNN 气溶胶混合 | 情况①/③ | ch14 §14.11 |
-| 积云 | MSKF CMT / NTiedtke 尺度自适应 / BMJ 反馈 / GFL | 情况①/③ | ch15 §15.11 |
-| 陆面 | 灌溉两代 / NoahMP v5.1.2 / Pedotransfer / RUC-PX 小修 | 情况①/③ | ch16 §16.11 |
-| 城市 | BEP+BEM+YSU / 分布式参数 / PVP+屋顶辐射修复 / NbS 树木 | 情况① | ch17 §17.9 |
+| 成分 | Thompson 气溶胶感知（qnwfa/qnifa）/ aercu / SSP 档案 | 情况①·已上游化 | ch11 §11.11 |
+| 辐射 | cldovrlp=5 / Goddard 接入 / 时变温室气体 | 情况①·已上游化 / ③ | ch12 §12.11 |
+| 微物理 | Thompson mp38 / NSSL 三矩 / RCON+TEMPO / WDM6 bug | 情况①·已上游化 | ch13 §13.11 |
+| PBL | 本书 L2：delt_thv 一行改 | **情况①·未上游化（本书全链原创）** | ch20 §20.3 |
+| PBL | Shin-Hong 并 YSU / MYNN 气溶胶混合（已上游化）；EEPS k-ε-θ²（未上游化） | 情况①·已上游化 / ③ | ch14 §14.11 |
+| 积云 | MSKF CMT / NTiedtke 尺度自适应 / BMJ 反馈 / GFL | 情况①·已上游化 / ③ | ch15 §15.11 |
+| 陆面 | 灌溉两代 / NoahMP v5.1.2 / Pedotransfer / RUC-PX 小修 | 情况①·已上游化 / ③ | ch16 §16.11 |
+| 城市 | BEP+BEM+YSU / 分布式参数 / PVP+屋顶辐射修复 / NbS 树木 | 情况①·已上游化 | ch17 §17.9 |
 | 个例 | 探针法 / 三重约束链方法论 | 方法论 | ch19 §19.8 |
 | 理想 | 细胞扰动法（LES 灰区）/ SCM 三级跳 | 情况③ | ch18 §18.8 |
 
-**用法建议**：① 立项前按“你的课题落在哪一层”查表找**官方同构改造**（最强样板）；② 三个**情况①（本书全链）**案例（L1/L2/L3）是亲手跑通的完整闭环，复现路径＝ch19 输入 + ch20 脚本；③ 引用任何案例前回查其所在章的“实测证据”列。
+**用法建议**：① 立项前按“你的课题落在哪一层”查表找**官方同构改造**（最强样板）；② 三个**情况①·未上游化（本书全链原创）**案例（L1/L2/L3）是亲手跑通的完整闭环，复现路径＝ch19 输入 + ch20 脚本；③ 引用任何案例前回查其所在章的“实测证据”列。**标注约定**：`已上游化`＝改造已并入官方发布版（“原本的代码块”须去 GitHub 历史或旧版本找，判别标志见 ch01 §1.6.2）；`未上游化`＝外部补丁或本书原创，需按所在章步骤自行实施。
 
 ---
 

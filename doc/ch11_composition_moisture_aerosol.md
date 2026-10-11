@@ -898,7 +898,7 @@ cfc12 = 0.538e-9                                   !  538 pptv
 ### 案例一　Thompson-Eidhammer 气溶胶感知微物理（3.8/4.0 一线的经典改造，本书 mp=8 的“隐藏功能”）
 
 - **课题**：气溶胶-云相互作用（ACI）：用**水溶性**（qnwfa）与**冰溶性**（qnifa）气溶胶浓度预报 CCN/IN 活化，替代纯诊断的活化方案（Thompson & Eidhammer 2014 JAS）；
-- **改造对象与原代码 vs 修改后**（情况①：全部在官方源码内）：
+- **改造对象与原代码 vs 修改后**（情况①·已上游化：全部在官方源码内）：
   - Registry 新增 4 个 state（qnwfa2d/3d、qnifa2d/3d）+ 输入档案（`qr_acr_qg…` 类查表文件）；
   - `module_mp_thompson.F` 的核化分支由“固定 profile 诊断 IN”改为“读 qnifa 活化”；`dust_emis=1`（4.0）再把扬尘接成冰核源（GOCART 式方案内嵌）；
   - 4.8.0 又把“人为气溶胶混合”推进 PBL（MYNN 的 bl_mynn_mixaerosols，见 ch02 §2.3.1 #7）——**气溶胶从辐射通道（被动光学）一路打进云微物理（主动核化）和边界层（湍流混合）三个家族**；

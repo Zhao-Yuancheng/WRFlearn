@@ -630,7 +630,7 @@ inc/i1_decl.inc: OK
 ### 案例一　MMM 共享物理库：一份物理代码服务三个模式
 
 - **课题**：跨模式物理复用——NCAR MMM 实验室推动同一套物理方案在 **WRF / MPAS / CCPP**（NOAA 的通用物理框架）三处运行，消除“同一方案两份代码、改 WRF 忘改 MPAS”的漂移；
-- **改造对象与原代码 vs 修改后**（情况①：改动已并入官方源码，可逐文件对照）：
+- **改造对象与原代码 vs 修改后**（情况①·已上游化：改动已并入官方源码，可逐文件对照）：
   - **原布局**：`phys/module_cu_ntiedtke.F`、`phys/module_bl_ysu.F`、`phys/mp_wsm6.F` 等直接放在 `phys/` 顶层，WRF 专有；
   - **修改后（4.6–4.7 分批完成）**：这五件套（修订 MM5 面层、New Tiedtke、WSM6、YSU、GWDO；4.7 再加 Shin-Hong）移入 **`phys/physics_mmm/`** 并改 `.F90` 后缀——本地树实测：`phys/physics_mmm/` 下有 `bl_ysu.F90`、`bl_shinhong.F90`、`bl_mynn.F90`、`bl_gwdo.F90`、`cu_ntiedtke.F90`、`mp_wsm6.F90`、`mp_radar.F90`、`mynn_shared.F90`，**还带一个 `Makefile.mpas`**（1.3 KB，MPAS 构建入口）——“跨模式”三个字落成了文件；
   - `phys/Makefile` 的 MYNN 条目（本地 line 460–468）展示了子模块装配模式：编译期把 `MYNN-EDMF/module_bl_mynnedmf.F90` 符号链接成 `phys/module_bl_mynnedmf.F`——“仓库里的文件”和“编译看到的文件”是两回事（ch05 §5.2 讲过生成物，这里是同一思想的物理版）；

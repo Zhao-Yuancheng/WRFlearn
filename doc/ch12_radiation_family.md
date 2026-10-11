@@ -1375,7 +1375,7 @@ phys/module_radiation_driver.F            唯一入口：radt 节流 → sw/lw �
 
 - **课题**：云垂直重叠结构对辐射传输的影响（传统随机重叠低估深层云的连续性）；
 - **改造内容**（4.4 notes）：RRTMG 新增**指数-随机重叠**（exponential-random，cldovrlp=5），配套**去相关长度** idcor（固定 2500 m 或随行星边界层顶/对流深度变化）；
-- **原代码 vs 修改后**：情况①（源码内 `module_ra_rrtmg_lw/sw` 的重叠矩阵分支；rconfig `cldovrlp`/`idcor`）；本书 12.x 讲的传统 cldovrlp=1~4 五种假设在源码里就是一个 SELECT CASE——**云重叠是“假设可枚举”问题的完美标本**；
+- **原代码 vs 修改后**：情况①·已上游化（源码内 `module_ra_rrtmg_lw/sw` 的重叠矩阵分支；rconfig `cldovrlp`/`idcor`）；本书 12.x 讲的传统 cldovrlp=1~4 五种假设在源码里就是一个 SELECT CASE——**云重叠是“假设可枚举”问题的完美标本**；
 - **教学点**：这类改造的验证方式是“同一云场换重叠假设看通量”——正是 ch12 轻轨实验手法的放大版。
 
 ### 案例二　Goddard 辐射接入（4.1）：一个方案的“全家桶”耦合

@@ -401,7 +401,7 @@ main/real_em.F
 
 - **课题**：初始化保真（湿热力学/云分辨率模拟对水汽初值的插值误差敏感）；
 - **改造内容**（4.6 release notes：*Add a new namelist option “use_sh_qv = T” to allow for choosing to use SH or Qv data directly*）：原代码把 metgrid 输出的水物质**先转成 RH、垂直插值、再在模式层换回混合比**；新增开关后若 met_em 里直接有混合比/比湿（flag_qv/flag_sh），可**跳过 RH 往返**；
-- **原代码 vs 修改后**（情况①，已在源码内；本地 `dyn_em/module_initialize_real.F`）：
+- **原代码 vs 修改后**（情况①·已上游化，已在源码内；本地 `dyn_em/module_initialize_real.F`）：
 
 ```fortran
 ! 原逻辑（use_sh_qv=.false.，默认）：一律从 RH 出发

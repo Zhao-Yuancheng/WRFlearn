@@ -315,6 +315,6 @@ THM: chunking=[1, 49, 45, 45]
 ### 案例三　本书 ch20 L3：用“输入流 0”喂参数场
 
 - **课题**：论文2 的屋顶反照率逐格参数场（`ALBROF_2D`）；
-- **改造内容**（情况①，全链代码在 ch20 §20.4.2）：Registry 行 `state real ALBROF_2D ij misc 1 - i0rh ...`——`i0` = 随**输入流 0（wrfinput）**进模式，`rh` = 重启保留 + 历史输出（诊断核对用）；注入用 python 脚本改写 wrfinput（`ch20_inject_albrof.py`），开关 `use_bem_2d_albedo` 控制是否生效；
+- **改造内容**（情况①·未上游化（本书原创），全链代码在 ch20 §20.4.2）：Registry 行 `state real ALBROF_2D ij misc 1 - i0rh ...`——`i0` = 随**输入流 0（wrfinput）**进模式，`rh` = 重启保留 + 历史输出（诊断核对用）；注入用 python 脚本改写 wrfinput（`ch20_inject_albrof.py`），开关 `use_bem_2d_albedo` 控制是否生效；
 - **与“正路”的关系**：更正式的通道是 **auxinput 流**（独立的 `&auxinput15` 之类闹钟 + `interval` 语义，ch09 §9.5 打好的机制基础）；本书选输入流 0 是因为参数场**静态**（无时间维）且要复用 real.exe 的插值链；
 - **教学点**：**静态参数场走输入流 0，时变强迫走 auxinput**——选择依据是“随不随时间变 + 要不要过 real”，不是“哪个更高级”。

@@ -414,7 +414,7 @@ flowchart LR
 
 - **课题**：非局地闭合 PBL 下的多层城市模拟（Hendricks et al. 2020 JAMC）；
 - **改造内容**：此前 BEP/BEM 只兼容 MYJ（1.5 阶闭合），4.3 起把 `a_u_bep/a_v_bep/a_t_bep/a_q_bep` 多层倾向接进 **YSU**——ch19 的“三重约束链”（PBL/面层/几何高度）因此有了 `sf_urban_physics=3 + YSU + sfclay=1` 这条通路；
-- **原代码 vs 修改后**：情况①（`module_bl_ysu.F` 的 `flag_bep` 分支 + `module_physics_init.F` 守卫——ch17 §17.5 的兼容矩阵即其最终形态）；
+- **原代码 vs 修改后**：情况①·已上游化（`module_bl_ysu.F` 的 `flag_bep` 分支 + `module_physics_init.F` 守卫——ch17 §17.5 的兼容矩阵即其最终形态）；
 - **教学点**：城市方案的“兼容性改造”改的是**其他家族的文件**——耦合类改造永远先画全家树（ch14 §14.10）。
 
 ### 案例二　SLUCM 分布式形态参数（4.6）：从“一类型一值”到“逐格场”的官方先例

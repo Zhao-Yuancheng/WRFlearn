@@ -525,5 +525,5 @@ main → wrf_run → integrate → solve_interface → solve_em → first_rk_ste
 - **课题**：本书 ch19 的两条教训（此处提炼为运行层通则）：
   ① **`ulimit -s` 无限**：计算节点默认栈 8 MB → `solve_em` 栈溢出 SIGSEGV（对照实测：默认栈 27 s 崩、unlimited 后 301 步正常）；
   ② **作业运行中禁改脚本**：`sed -i` 替换正在执行的 sbatch 脚本 → NFS `Stale file handle` → 五天积分砍在第 4.5 天；
-- **收录方式**：情况①（完整证据链在 ch19 §19.3/§19.5）；
+- **收录方式**：情况①（本书实录——**运维级案例，非代码改造，不适用“上游化”**；完整证据链在 ch19 §19.3/§19.5）；
 - **教学点**：slurm 作业务必在脚本头部 `ulimit -s unlimited`；任何“作业活着就别动它的工作目录”（WRF 运行中替换 namelist/脚本 = 自杀式运维）。

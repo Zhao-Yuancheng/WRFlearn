@@ -859,7 +859,7 @@ $$m_w=q\,m=0.00544\times1529.6=8.32\ \mathrm{kg\cdot m^{-2}}$$
 
 - **课题**：灌溉对区域气候的反馈（印度/华北的“灌溉降温”类研究）；
 - **改造内容**：4.2 给 **Noah** 加三选项（Valmassoi et al. 2020 GMD：Channel/Drip/Sprinkler——水分别从地表/冠层/最低模式层蒸发）；4.3 给 **NoahMP** 加**动态灌溉**（估算需水量 + 三种施水法，`&noahmp` namelist 选择）——“静态开关 → 动态闭环”的版本演进；
-- **原代码 vs 修改后**：情况①（源码内；Noah 的在 `module_sf_noahlsm.F` 的蒸发分支旁，NoahMP 的在其 irrigation Mod）；
+- **原代码 vs 修改后**：情况①·已上游化（源码内；Noah 的在 `module_sf_noahlsm.F` 的蒸发分支旁，NoahMP 的在其 irrigation Mod）；
 - **教学点**：同一科学问题在“旧 LSM 补丁”与“新 LSM 子系统”两种成熟度上的不同落法——**选 LSM 就是选改造面**。
 
 ### 案例二　Noah-MP v5.1.2（4.8）：重构版子模块

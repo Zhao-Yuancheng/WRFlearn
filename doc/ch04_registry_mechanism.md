@@ -857,7 +857,7 @@ module_state_description.F  方案号与 4D 索引常量
 
 - **课题**：区域气候模拟（CLWRF = Climate Limited-area WRF；WRF4G 工作流项目，L. Fita 等）；
 - **需求**：区域气候运行需要“每个诊断输出区间内的**统计量**”（最大/最小/平均/标准差及其出现时刻），而不是瞬时快照；
-- **改造对象与原代码 vs 修改后**（情况①：**已并入官方 4.8.0 源码**，可直接读）：
+- **改造对象与原代码 vs 修改后**（情况①·已上游化：**已并入官方 4.8.0 源码**，可直接读）：
   1. `Registry/Registry.EM_COMMON`——原版无此块，改造后新增 `# CLWRF-WRF4G` 块（本地 1759 行起），约 24 个 state 记录、统一走 `rh3`（auxhist3 流）。摘录（原文照抄）：
 
 ```text
@@ -876,9 +876,9 @@ state    real  TT2MAX           ij      misc        1         -      rh3      "T
 ### 案例二　CORDEX-WRF 诊断模块（4.8.0 release notes 中的 PR #2245/#2322）
 
 - **课题**：CORDEX 降尺度共同体需要的标准化输出（约 150 个诊断量）；
-- **改造内容**：新增 namelist 节 **`&cdxwrf`** 与三个输出通道：`auxhist19`（主文件 wrfcdx）、`auxhist18`（高频 10 min，rain/colmax，用于对流系统追踪）、`auxhist23`（气压层插值 wrfpress）；学术出处 Fita et al. 2019 (GMD, 12, 1029–1066)；
-- **本地核验提示**：本教材写作时在 tarball 中未检索到 cdxwrf 命名的源文件（**待核**，可能随包方式不同）——请以 GitHub PR #2245/#2322 为准；
-- **教学点**：auxhist 高位流（18/19/23）+ 专用 namelist 节，是“大包诊断”的官方通道；ch09 的 auxinput/auxhist 机制表在这里被真实项目用满。
+- **改造内容**：新增 namelist 节 **`&cordex`**（`output_cordex` 默认 0=关）与三个输出通道：`auxhist19`（主文件 wrfcdx）、`auxhist18`（高频 10 min，rain/colmax，用于对流系统追踪）、`auxhist23`（气压层插值 wrfpress）；学术出处 Fita et al. 2019 (GMD, 12, 1029–1066)；
+- **收录方式**：情况①·**已上游化**（2026-10-11 复核勘误，推翻初稿“未检索到、待核”）——`Registry/registry.cordex`（文件头署名 L. Fita, CIMA, December 2017；rconfig 全部挂 `namelist,cordex`）与 `phys/module_diag_cordex.F`、`phys/module_diagvar_cordex.F` 均在 4.8.0 包内，由 `module_diagnostics_driver.F` 调度；`Registry/registry.em_shared_collection` 第 34 行 `include registry.cordex` 无条件进 EM 构建；`Registry.EM_COMMON` 第 68 行还留有 `# CDXWRF modification` 标记（ZS/DZS 挂 {19}=auxhist19 流）；`CDXWRF_1..4` 是按需加编译宏的分层 ifdef（直方图类统计诊断）；
+- **教学点**：auxhist 高位流（18/19/23）+ 专用 namelist 节 + 专用 diag 模块，是“大包诊断”的官方通道；与 CLWRF 案例同构——**又一个“研究项目 → 官方源码”的完整样本**（CLWRF 走 rh3 常规流，CORDEX 走 auxhist 高位流：同一归宿的两种“上游化”落位策略）。
 
 ### 案例三　registry.noahmp：Registry 本身的“分治”改造
 
