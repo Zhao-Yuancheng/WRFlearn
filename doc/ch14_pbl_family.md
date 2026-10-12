@@ -330,25 +330,16 @@ $$\underbrace{\frac{\partial e}{\partial t} + \bar U\frac{\partial e}{\partial x
 
 ### 14.5.1 调用链（实测）
 
-```mermaid
-graph TD
-    A["solve_em：RK3 时间推进主循环"] --> B["first_rk_step_part1：物理倾向统一下发"]
-    B --> C["radiation_driver（radt 控制频率，第 12 章）"]
-    B --> D["surface_driver：近地层，产出 u*、hfx、qfx、ustar"]
-    B --> E["pbl_driver：边界层方案分发（本步重头）"]
-    B --> F["shallowcu_driver：浅对流（后文章节）"]
-    E --> E1["YSUSCHEME"]
-    E --> E2["MYNNPBLSCHEME"]
-    E --> E3["BOULACSCHEME"]
-    E --> E4["BEP/BEM 城市分支、其余十余个分支…"]
-```
+![ch14_pbl_family_01](figs/mermaid/ch14_pbl_family_01.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch14_pbl_family_01.mmd -->
 
 要点（与第 12/13 章对照）：
 
-- WRF 的三阶 Runge–Kutta 时间积分把**物理过程集中安排在第一步**（`dyn_em/module_first_rk_step_part1.F`）——辐射、近地层、边界层、浅对流都在这一个子程序内**依序**调用；微物理是例外，在 `solve_em` 里直接调用（第 13 章）；
+- WRF 的三阶 Runge–Kutta 时间积分把**物理过程集中安排在第一步**（`dyn_em/module_first_rk_step_part1.F`）——辐射、近地层、边界层、积云、浅对流都在这一个子程序内**依序**调用；微物理是例外，在 `solve_em` 的 RK 循环之后直接调用（第 13 章 §13.6.1 交叉注、第 21 章 §21.2.14）；
 - **顺序即依赖**：surface_driver 先于 pbl_driver——PBL 方案必须消费近地层算出的 u*、感热通量 hfx、潜热通量 qfx；
 - PBL 在 `BENCH_START(pbl_driver_tim)` 性能计时包裹内，是逐时间步的常客（bldt=0）；
-- **每个时间步一次**与第 13 章“微物理每步多次调用”（因积云尺度调整）形成鲜明节奏对比。
+- PBL 与微物理同为**每时间步一次**（第 13 章），差异在位置：PBL 在 RK 第一步的物理段内，微物理在 RK 循环之后；真正的节奏对比来自辐射的 `radt` 低频调用（14.4 的“节奏学”）。
 
 ### 14.5.2 `module_pbl_driver.F`：一个子程序装下全部方案族
 
@@ -471,15 +462,19 @@ MYNN 主体对“每个变量住在哪”极其自觉（头部注释原文说明
 
 主体子程序 `mynnedmf` 对每个格点（列）做同一个流水线（实测调用顺序）：
 
-```mermaid
-graph TD
-    A["mynnedmf 主例程（列循环）"] --> B["mym_initialize：初始化 TKE、长度尺度、稳定度函数"]
-    B --> C["mym_condensation：诊断液水 ql 与云量"]
-    C --> D["ddmp_mf：下沉质量通量（downdraft）"]
-    D --> E["mym_turbulence：混合长 + 稳定度函数 + 扩散系数 + 各生产项"]
-    E --> F["mym_predict：推进 qke、θl、qw 等预报量，组装倾向"]
-    F --> G["get_pblh / SCALE_AWARE / topdown_cloudrad 等诊断"]
+**MYNN-EDMF `mynnedmf` 主例程的子例程调用链**（详见 ch14 §14.6）：
+
+```text
+mynnedmf（列循环）
+ ├─ mym_initialize      初始化 TKE、长度尺度、稳定度函数
+ ├─ mym_condensation    诊断液水 ql 与云量
+ ├─ ddmp_mf             下沉质量通量（downdraft）
+ ├─ mym_turbulence      混合长 + 稳定度函数 + 扩散系数 + 各生产项
+ ├─ mym_predict         推进 qke、θl、qw 等预报量，组装倾向
+ └─ get_pblh / SCALE_AWARE / topdown_cloudrad  等诊断
 ```
+
+
 
 关键子程序清单（主体头部自带）：
 
@@ -660,6 +655,8 @@ YSU（**Hong, Noh & Dudhia 2006**）代表另一条技术路线：**不预报 TK
 复现方式：脚本 `workspace/scripts/ch14_experiment.py`（Python 环境 WRFlearn），完整日志 `workspace/logs/ch14_experiment.log`。四组实验分别对应书 6.8 的四块物理。
 
 ### 14.8.1 E1：稳定度判据表（书习题 7 探空，逐层双判据）
+
+> **判据量口径**：书 (6.8.14)/(6.8.15) 的正式判据量是**假相当位温 $\theta_{se}$**；E1 为计算方便以**相当位温 $\theta_e$**（脚本按 $\theta\cdot\exp(L_v q/(c_{pd}T))$ 计算；$\theta_e$ 与 $\theta_{se}$ 的关系见 13.3.3）逐层代用——两者在本探空逐层同号，第 15 章 E2 用 $\theta_{se}$ 复算并正式对接 6.9.2。
 
 | 层（hPa） | Γ (K/km) | γs (K/km) | θ (K) | θe (K) | ∂θ/∂z | ∂θe/∂z | 判据 (6.8.10–12) | θ/θe 判据 |
 |---|---|---|---|---|---|---|---|---|

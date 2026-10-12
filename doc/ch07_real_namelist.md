@@ -42,15 +42,16 @@
 
 ### 7.1.1 输入与输出
 
-```mermaid
-flowchart LR
-    M["met_em.d01/d02.*.nc<br/>（42 个：21 时刻 × 2 域）"] --> R["real.exe"]
-    N["namelist.input<br/>（域/物理/动力学全配置）"] --> R
-    R --> I1["wrfinput_d01<br/>（14.3 MB）"]
-    R --> I2["wrfinput_d02<br/>（20.6 MB）"]
-    R --> B["wrfbdy_d01<br/>（58.7 MB）"]
-    I1 -.->|"子域边界的来源"| I2
+**`real.exe` 输入与产物**（详见 ch07 §7.1）：
+
+```text
+met_em.d01/d02.*.nc ──┐
+（42 个：21 时刻 × 2 域）├──→  real.exe  ──→  wrfinput_d01（14.3 MB）
+namelist.input ───────┘          │           wrfinput_d02（20.6 MB）
+（域/物理/动力学全配置）          └──→  wrfbdy_d01（58.7 MB）
 ```
+
+
 
 三个产物、三条线索：
 

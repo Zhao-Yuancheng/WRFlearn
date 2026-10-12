@@ -37,17 +37,21 @@
 
 ### 21.0.3　本章在调用链中的位置
 
-```mermaid
-flowchart TD
-    A["main/wrf.F: wrf_run"] --> B["share/mediation_integrate.F: integrate"]
-    B --> C["frame/module_integrate.F: integrate(递归各域)"]
-    C --> D["share/solve_interface.F: solve_interface<br/>actual_new_args.inc 展开实参"]
-    D --> E["dyn_em/solve_em.F: solve_em<br/>★ 本章"]
-    E --> E1["dyn_em/module_first_rk_step_part1.F<br/>辐射/陆面/PBL/积云"]
-    E --> E2["dyn_em/module_small_step_em.F<br/>声波小步长"]
-    E --> E3["phys/module_microphysics_driver.F<br/>微物理（RK 循环后）"]
-    E --> E4["dyn_em/module_after_all_rk_steps.F<br/>诊断"]
+**从 `main` 到 `solve_em` 的调用链**（详见 ch21 §21.1-21.2 走读）：
+
+```text
+main/wrf.F :: wrf_run
+ └─ share/mediation_integrate.F :: integrate
+     └─ frame/module_integrate.F :: integrate（递归所有嵌套域）
+         └─ share/solve_interface.F :: solve_interface（actual_new_args.inc 展开实参）
+             └─ dyn_em/solve_em.F :: solve_em  ◀── 本章主角
+                 ├─ dyn_em/module_first_rk_step_part1.F  —— 辐射/陆面/PBL/积云
+                 ├─ dyn_em/module_small_step_em.F        —— 声波小步长
+                 ├─ phys/module_microphysics_driver.F    —— 微物理（RK 循环后）
+                 └─ dyn_em/module_after_all_rk_steps.F   —— 诊断输出
 ```
+
+
 
 衔接提示：`wrf.F → integrate → solve_interface` 这条上层链已在 [ch03](ch03_architecture_overview.md) §3.8 讲过；`solve_em` 的 tile 循环骨架与 OpenMP 结构在 ch20 §20.2.2 的第一级改造里已实跑过；垂直坐标 c1–c4 混合系数在 ch10 §10.12；real.exe 基态 `mub/pb/t_init` 在 ch07。
 
@@ -98,15 +102,17 @@ $$n_s=\max\Big(2\big(\lfloor 300\,\Delta t/\Delta x-0.01\rfloor+1\big),\;4\Big)$
 
 为什么这样分？物理图像：平流与适应过程的时间尺度是分钟级，声波是秒级；把慢项交给大步长高阶 RK，快项交给小步长低阶格式，比整体用小步长省一个量级的计算量。这就是“时间分裂”（time splitting）。RK3 本身的选择依据见 Wicker & Skamarock（2002）：三阶 RK 允许更大的稳定时间步且对平流相位误差更友好。
 
-```mermaid
-sequenceDiagram
-    participant DT as 一个时间步 Δt=54s
-    Note over DT: Runge_Kutta_loop (rk_ord=3)
-    DT->>DT: rk_step=1: dt_rk=18s<br/>物理(part1/2) + 动力 + 1 个声波小步(18s)
-    DT->>DT: rk_step=2: dt_rk=27s<br/>动力 + 2 个声波小步(13.5s)
-    DT->>DT: rk_step=3: dt_rk=54s<br/>动力 + 4 个声波小步(13.5s)
-    Note over DT: RK 循环后：微物理 + 诊断 + 边界收尾
-```
+**一个时间步内的 Runge-Kutta 与声波小步长编排**（`rk_ord=3`，`dt=54s`）：
+
+| RK 步 | dt_rk | 执行内容 | 声波小步长 |
+|---|---|---|---|
+| `rk_step=1` | 18 s | 物理 part1+part2 + 动力 | 1 × 18 s |
+| `rk_step=2` | 27 s | 动力 | 2 × 13.5 s |
+| `rk_step=3` | 54 s | 动力 | 4 × 13.5 s |
+
+> 微物理 `microphysics_driver` 在 RK 循环**全部结束后**、每时间步执行一次。
+
+
 
 ### 21.1.3　状态变量家族与耦合约定
 
@@ -123,25 +129,9 @@ sequenceDiagram
 
 把 `solve_em` 从入口到出口压成一张图（细节逐站在 21.2 展开）：
 
-```mermaid
-flowchart TD
-    A["① 入口: 实参展开/域尺寸/set_tiles"] --> B["② 自适应时步 + num_sound_steps + dts"]
-    B --> C["③ 边界倾向清零(DFI) + moist_old 初始化"]
-    C --> D["④ Runge_Kutta_loop 开始<br/>装配 dt_rk/dts_rk/小步数"]
-    D --> E["⑤ rk_step_prep: 耦合与诊断量"]
-    E --> F["⑥ HALO 交换 + 物理边界 rk_phys_bc_dry_1"]
-    F --> G{"rk_step==1 ?"}
-    G -- 是 --> H["⑦ first_rk_step_part1: 辐射→陆面→PBL→积云→浅对流<br/>⑧ first_rk_step_part2: km/kh + 扩散倾向 + SKEBS"]
-    G -- 否 --> I
-    H --> I["⑨ rk_tendency: 平流+科氏+气压梯度+扩散+阻尼"]
-    I --> J["⑩ 边界倾向: relax_bdy_dry/spec_bdy_dry(+SKEBS 扰动)"]
-    J --> K["⑪ small_steps 循环: advance_uv→advance_mu_t→advance_w"]
-    K --> L["⑫ 标量方程循环(moist/chem/tracer/scalar/tke)<br/>rk_scalar_tend → rk_update_scalar(_pd)"]
-    L --> M["⑬ rk_step_1_check: p-rho-phi + 极区滤波 + 诊断 w"]
-    M --> N{"rk_step < rk_order ?"}
-    N -- 是 --> E
-    N -- 否 --> O["⑭ RK 循环后: 微物理 + 正定滤波 + spec_bdy_final<br/>+ set_w_surface + after_all_rk_steps(诊断)"]
-```
+![ch21_solve_em_dynamics_03](figs/mermaid/ch21_solve_em_dynamics_03.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch21_solve_em_dynamics_03.mmd -->
 
 ---
 
@@ -254,20 +244,9 @@ calc_php           : php（扰动位势半层量）
 
 `dyn_em/module_first_rk_step_part1.F` 的精确调用序（当次实测）：
 
-```mermaid
-flowchart TD
-    A["init_zero_tendency<br/>清零 *_tendf"] --> B["phy_prep<br/>th_phy/p_phy/pi_phy/u_phy…诊断场"]
-    B --> C["pre_radiation_driver<br/>云量/气溶胶准备"]
-    C --> D["radiation_driver<br/>ch12"]
-    D --> E["surface_driver<br/>ch16/ch17：陆面+城市冠层"]
-    E --> F["pbl_driver<br/>ch14：边界层"]
-    F --> G["（WRF-Fire 挂点）fire_driver_em_step<br/>案例 30"]
-    G --> H["cumulus_driver<br/>ch15：深积云"]
-    H --> I["convtrans_prep<br/>对流云量/上升率准备"]
-    I --> J["shallowcu_driver<br/>ch15：浅对流"]
-    J --> K["（SCM）force_scm"]
-    K --> L["fddagd_driver<br/>nudging FDDA"]
-```
+![ch21_solve_em_dynamics_04](figs/mermaid/ch21_solve_em_dynamics_04.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch21_solve_em_dynamics_04.mmd -->
 
 对，顺序就是 ch14/ch15 源码走读时反复引用的那条链——本章把它钉死在 `module_first_rk_step_part1.F` 上。若你想给某个物理方案“降频”（比如辐射隔步调用），改的正是这个文件里的调用节律（`phys/module_radiation_driver.F` 内部另有 `radt` 节拍控制，ch12 §12.5）。
 
@@ -485,7 +464,7 @@ ch14 §14.5 讲过 `module_diffusion_em.F: calculate_km_kh` 的三个家族（sm
 
 **目的**：把 21.2.3 的公式与 21.2.5 的表变成可复算的账本，并与 ch08 的生产运行（作业 439419）实测交叉验证。
 
-**脚本**：[ch21_timestep_audit.py](file:///d:/Code/Learn/WRF/workspace/scripts/ch21_timestep_audit.py)（读取 [namelist.input](file:///d:/Code/Learn/WRF/workspace/cases/lanzhou2025/namelist.input) 的 `&domains`，重演 `num_sound_steps` 公式与 RK3 步长装配，对照 439419 实测）。
+**脚本**：`workspace/scripts/ch21_timestep_audit.py`（读取 `workspace/cases/lanzhou2025/namelist.input` 的 `&domains`，重演 `num_sound_steps` 公式与 RK3 步长装配，对照 439419 实测）。
 
 **实测输出**（`workspace/logs/ch21_timestep_audit.log`）：
 
@@ -598,28 +577,9 @@ d01 每步小步数 7 → 5 天累计 56000 个声波小步
 
 以 `solve_em.F` 为根的 `dyn_em` 内核文件级依赖（mermaid；节点括号内是该文件的**代表函数**，全清单见各章已讲的精读）：
 
-```mermaid
-flowchart TD
-    SOLVE["solve_em.F<br/>solve_em"]
-    SOLVE --> EM["module_em.F<br/>rk_step_prep·rk_tendency·rk_addtend_dry<br/>rk_scalar_tend·rk_update_scalar(_pd)·trajectory"]
-    SOLVE --> BIG["module_big_step_utilities_em.F<br/>couple/decouple·coriolis·curvature<br/>horizontal_pressure_gradient·pg_buoy_w·rhs_ph<br/>w_damp·diagnose_w·calc_p_rho_phi·phy_prep(_part2)"]
-    SOLVE --> SS["module_small_step_em.F<br/>small_step_prep/finish·advance_uv<br/>advance_mu_t·advance_w·calc_coef_w·sumflux"]
-    SOLVE --> ADV["module_advect_em.F<br/>advect_u/v/w/scalar(+pd/mono)<br/>advect_*_weno"]
-    SOLVE --> IEVA["module_ieva_em.F<br/>WW_SPLIT·advect_*_implicit·TRIDIAG"]
-    SOLVE --> DIFF["module_diffusion_em.F<br/>cal_deform_and_div·calculate_km_kh<br/>horizontal/vertical_diffusion_2·tke_rhs"]
-    SOLVE --> BCEM["module_bc_em.F<br/>relax_bdy_dry·spec_bdy_dry·rk_phys_bc_dry_1/2<br/>spec_bdy_final·set_w_surface·lbc_fcx_gcx"]
-    SOLVE --> BCF["share/module_bc.F<br/>set_physical_bc3d/2d·spec_bdyupdate<br/>relax_bdytend·flow_dep_bdy"]
-    SOLVE --> P1["module_first_rk_step_part1.F<br/>→ phys: radiation/surface/pbl/cumulus/shallowcu"]
-    SOLVE --> P2["module_first_rk_step_part2.F<br/>→ calculate_phy_tend·calculate_km_kh·sfs_driver"]
-    SOLVE --> AFT["module_after_all_rk_steps.F<br/>→ diagnostics_driver"]
-    SOLVE --> PFT["module_polarfft.F<br/>pxft·polar_filter_3d"]
-    SOLVE --> STO["module_stoch.F<br/>SKEBS/SPPT 随机场"]
-    SOLVE --> DMP["module_damping_em.F<br/>held_suarez_damp"]
-    SOLVE --> PD["module_positive_definite.F<br/>positive_definite_slab/sheet"]
-    SOLVE --> AVG["module_avgflx_em.F<br/>zero_avgflx·upd_avgflx"]
-    P1 --> PHYS["phys/*_driver（第 III 部各章）"]
-    P2 --> DIFF
-```
+![ch21_solve_em_dynamics_05](figs/mermaid/ch21_solve_em_dynamics_05.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch21_solve_em_dynamics_05.mmd -->
 
 读法提示：`module_em.F` 是“总装”（RK 主逻辑），`module_big_step_utilities_em.F` 是“零件库”（42 个子程序，本次实测清单），`module_small_step_em.F` 是独立小步长机器。三者只被 `solve_em` 单向调用，互不回头——这就是内核扩展时“加新倾向项”通常改 `module_em`/`module_big_step_utilities`、加新物理走 `part1/2` 的分工依据。
 

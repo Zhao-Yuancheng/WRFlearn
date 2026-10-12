@@ -7,14 +7,9 @@
 
 ## 1.0 本章地图
 
-```mermaid
-flowchart LR
-    A["行星大气<br/>（书 1.1）"] --> B["地球大气的演化<br/>（书 1.2）"]
-    B --> C["现代大气：<br/>氮 + 氧 + 微量可变成分"]
-    C --> D{"如何预测<br/>这个大气的未来？"}
-    D --> E["观测"] --> F["理论"] --> G["数值模式"]
-    G --> H["WRF 家族与源码树<br/>（全书的主场）"]
-```
+![ch01_from_atmosphere_to_models_01](figs/mermaid/ch01_from_atmosphere_to_models_01.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch01_from_atmosphere_to_models_01.mmd -->
 
 - **1.1 大气物理学：对象与分支**——“大气物理”四个字的定义，以及它和 WRF 源码目录的一一对应；
 - **1.2 行星大气**——八颗行星的大气概貌（书表 1.1），类地/类木之分的化学解释；
@@ -266,19 +261,9 @@ WRF 计划历史上并存两个动力内核：
 
 ### 1.5.1 家族成员一图流
 
-```mermaid
-flowchart TB
-    GEO["WPS 4.7.0<br/>geogrid · ungrib · metgrid<br/>(静态场 + 气象初边值制备)"] --> REAL["real.exe<br/>(垂直插值 + 基态构造)"]
-    REAL --> CORE["WRF-ARW 4.8.0<br/>wrf.exe<br/>(动力内核 + 物理参数化)"]
-    GEO --> CORE
-    CORE --> OUT["wrfout / wrfrst<br/>(netCDF 输出)"]
-    CORE -.-> NDOWN["ndown.exe / tc.exe<br/>(降尺度 / 台风跟随)"]
-    CORE -.-> HYD["WRF-Hydro<br/>(陆水文耦合, hydro/)"]
-    CORE -.-> CHEM["WRF-Chem<br/>(化学在线耦合, chem/)"]
-    CORE -.-> FIRE["WRF-Fire<br/>(火行为耦合)"]
-    CORE -.-> DA["WRFDA<br/>(资料同化, var/)"]
-    CORE -.-> PLUS["WRFPLUS<br/>(切线性/伴随, wrftladj/)"]
-```
+![ch01_from_atmosphere_to_models_02](figs/mermaid/ch01_from_atmosphere_to_models_02.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch01_from_atmosphere_to_models_02.mmd -->
 
 - **实线是本书主链**（ch06–ch08 全程实录）；虚线是家族扩展，按需取用。
 - 另有两个“同根兄弟”值得知道：**MPAS**（下一代全球模式，与 WRF 共享部分物理库——第 14 章将看到 MYNN-EDMF 的 `phys/MYNN-EDMF/` 目录里同时有 `WRF/` 与 `MPAS/` 子目录）；**CCPP**（物理框架，NOAA 系用，4.7/4.8 的若干方案已“一码三用”于 WRF/MPAS/CCPP）。

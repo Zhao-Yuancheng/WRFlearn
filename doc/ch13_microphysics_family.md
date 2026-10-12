@@ -197,7 +197,7 @@ $$\frac{\mathrm{d}p}{\mathrm{d}T} = \frac{s_2 - s_1}{\alpha_2 - \alpha_1} \tag{6
 
 再用 (6.1.39) $s_2 - s_1 = \dfrac{L}{T}$（由 (6.1.34) 与 $\mu=h-Ts$ 得）：
 
-$$\frac{\mathrm{d}p}{\mathrm{d}T} = \frac{L}{T(\alpha_2 - \alpha_1)} \tag{6.1.40a} \qquad \xrightarrow{\ \alpha_\text{液} \ll \alpha_\text{汽}\ } \qquad \frac{\mathrm{d}p}{\mathrm{d}T} = \frac{L_v}{T\alpha_2} \tag{6.1.40b}$$
+$$\frac{\mathrm{d}p}{\mathrm{d}T} = \frac{L}{T(\alpha_2 - \alpha_1)} \qquad \xrightarrow{\ \alpha_\text{液} \ll \alpha_\text{汽}\ } \qquad \frac{\mathrm{d}p}{\mathrm{d}T} = \frac{L_v}{T\alpha_2} \tag{6.1.40a 6.1.40b}$$
 
 用水汽状态方程 $\alpha_2 = R_v T/p$ 换成习惯的饱和水汽压 $e_s$，即回到第二章的 (2.2.6)：
 
@@ -325,7 +325,7 @@ $$\theta = T\left(\frac{1000}{p}\right)^{0.286} \tag{6.2.9}$$
 
 未饱和湿空气的位温以干空气位温代替（$\theta_d-\theta$ 一般 < 0.1 K）。**虚位温**：
 
-$$\theta_v = T_v\left(\frac{1000}{p}\right)^{\kappa} \tag{6.2.10} \qquad \theta_v = \theta(1 + 0.608q) \tag{6.2.11}$$
+$$\theta_v = T_v\left(\frac{1000}{p}\right)^{\kappa}  \qquad \theta_v = \theta(1 + 0.608q) \tag{6.2.10 6.2.11}$$
 
 **位温的核心性质**（印刷页 136 推导）：对 (6.2.8) 取对数微分
 
@@ -511,7 +511,7 @@ $$a = \oint p\,\mathrm{d}\alpha = \oint (R\,\mathrm{d}T - \alpha\,\mathrm{d}p) =
 
 ### 13.4.3 图解的应用
 
-**（1）绘制大气层结曲线**：把探空各高度实测的温度、露点和压强点绘在图上、连成折线，得到**温度层结曲线**与**露点层结曲线**（即本章图 13.1 中的黑实线/黑虚线）。
+**（1）绘制大气层结曲线**：把探空各高度实测的温度、露点和压强点绘在图上、连成折线，得到**温度层结曲线**与**露点层结曲线**（即本节末埃玛图中的黑实线/黑虚线）。
 
 **（2）求等压面间厚度**：实际大气是虚温与压强的关系复杂，用等温大气公式算厚度有困难，可用图解法求**平均虚温**：
 
@@ -521,11 +521,11 @@ $$Z_{gd} - Z_{gl} = \frac{R_d}{g_0}\int_{p_1}^{p_2} T_v\,\mathrm{d}\ln\frac{p_{0
 
 **（3）绘制气块的路径曲线（状态曲线）**：气块状态随气压（高度）变化的曲线。初始状态 $(T_0, p_0, q_0)$ 的未饱和气块外力抬升，先沿干绝热上升；当水汽压降为 $q_0$ 对应的饱和值（露点）时达到抬升凝结高度 LCL；LCL 以上沿假绝热上升（图 6.6）。**“在 LCL 以上，饱和湿空气块将以假绝热过程上升，其比湿等于该空气块的温度和压强所对应的饱和比湿。”**
 
-> **本章图 13.1（实验 13.9.1）就是一例完整应用**：书习题 7 探空 + 气块路径 + LCL/LFC 标注。
+> **本节末这张埃玛图（实验 13.9.1 的成品）就是一例完整应用**：书习题 7 探空 + 气块路径 + LCL/LFC 标注。
 
 ![书习题 7 探空的埃玛图（T-lnP）：干绝热线、假绝热线、饱和比湿线（g/kg）与气块路径（自算）](figs/ch13_emagram.png)
 
-> 图中灰实线为干绝热线族（250–450 K 每 10 K 一条）；灰虚线为假绝热线族（1000 hPa 处 −4 至 36 ℃ 每 4 ℃ 一条，由 (6.3.3) 数值积分）；灰点线为饱和比湿线（0.5/1/2/4/8/16 g/kg，按 $\varepsilon e_s/(p-e_s)$ 直接计算）；黑实线/黑虚线为书习题 7 探空的温度/露点层结曲线；红线为地面气块（23.0 ℃、露点 19.0 ℃）的路径曲线——干绝热到 LCL（942.9 hPa，18.06 ℃，506 m）后转假绝热；绿三角为 LFC（343.8 hPa，约 8 km，气块首次高于环境温度）。
+> 图中灰实线为干绝热线族（250–450 K 每 10 K 一条）；灰虚线为假绝热线族（1000 hPa 处 −4 至 36 ℃ 每 4 ℃ 一条，由 (6.3.3) 数值积分）；灰点线为饱和比湿线（0.5/1/2/4/8/16 g/kg，按混合比式 $r_s=\varepsilon e_s/(p-e_s)$ 直接计算；书 (2.2.12b) 的 $q_s=r_s/(1+r_s)$ 与之同族，两口径标签差 ≤2%，埃玛图上不可分辨）；黑实线/黑虚线为书习题 7 探空的温度/露点层结曲线；红线为地面气块（23.0 ℃、露点 19.0 ℃）的路径曲线——干绝热到 LCL（942.9 hPa，18.06 ℃，506 m）后转假绝热；绿三角为 LFC（343.8 hPa，约 8 km，气块首次高于环境温度）。
 
 ### 13.4.4 斜 T-lnp 图与温熵图
 
@@ -575,7 +575,7 @@ $$T \approx \frac{m_1 T_1 + m_2 T_2}{m} \tag{6.5.3}$$
 
 水汽压与位温也近似为质量加权平均：
 
-$$\bar{e} \approx \frac{m_1 e_1 + m_2 e_2}{m} \tag{6.5.4} \qquad \bar{\theta} \approx \frac{m_1 \theta_1 + m_2 \theta_2}{m} \tag{6.5.5}$$
+$$\bar{e} \approx \frac{m_1 e_1 + m_2 e_2}{m}  \qquad \bar{\theta} \approx \frac{m_1 \theta_1 + m_2 \theta_2}{m} \tag{6.5.4 6.5.5}$$
 
 书上小结：“混合后的 $q$，$T$，$e$ 和 $\theta$ 都由初值的质量加权平均得到。(6.5.5) 式说明空气块绝热混合的效果是：**位温高的气块混合时，位温降低，即它放出热量；位温低的气块混合时吸收热量，位温升高；若两空气块位温相等，则达到热量平衡。**”
 
@@ -719,21 +719,11 @@ $$T_{sw} < T_w < T < T_e < T_{se} \qquad \text{和} \qquad \theta_{sw} < \theta 
 
 与辐射“按 `radt` 节拍触发”（第 12 章）不同，**微物理在每一个时间步都被调用一次**。调用点在 `dyn_em/solve_em.F` 的物理段，前后各有一个“准备/收尾”：
 
-```mermaid
-flowchart TB
-    A["dyn_em/solve_em.F（每个时间步的物理段）"] --> B["moist_physics_prep_em<br/>（水物质场准备、qzero 阈值处理）"]
-    B --> B2["bulk_dust_emis（仅 mp=28 且 dust_emis=1：沙尘排放）"]
-    B2 --> C["CALL microphysics_driver（DT=dtm, TH=th_phy, P=p_phy, PI_PHY, DZ8W, RHO, SR, ITIMESTEP …）"]
-    C --> D{"micro_select:<br/>SELECT CASE(mp_physics)"}
-    D -->|"8 / 28 / 38"| E["mp_gt_driver（module_mp_thompson.F）"]
-    D -->|"6"| F["wsm6 → mp_wsm6_run（physics_mmm/mp_wsm6.F90）"]
-    D -->|"其余约 37 个分支"| G["Kessler / Lin / WDM / P3 / Morrison / NSSL …"]
-    E --> H["就地更新 QV QC QR QI QS QG NI NR<br/>并把凝结/冻结潜热写回温度倾向"]
-    F --> H2["就地更新 QV QC QR QI QS QG<br/>并把潜热写回温度"]
-    H --> I["moist_physics_finish_em"]
-    H2 --> I
-    I --> J["面雨量 RAINNC/RAINNCV、雪比 SR、REFL_10CM、<br/>re_cloud/re_ice/re_snow（供辐射）等进入 grid"]
-```
+![ch13_microphysics_family_01](figs/mermaid/ch13_microphysics_family_01.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch13_microphysics_family_01.mmd -->
+
+> **时刻的精确口径**（交叉注，详见第 21 章 §21.2.14）：微物理不在 Runge–Kutta 子循环体内——三段 RK 子步**全部完成之后**，才依次执行 `moist_physics_prep_em` → `microphysics_driver` → `moist_physics_finish`，整段挂在 `Runge_Kutta_loop` 之外、每时间步一次。这与上文“每个时间步都被调用一次”的表述并行不悖，但纠正一个常见直觉：微物理倾向**不参与 RK 时间推进的积分**，而是以下文“工程细节”第三条所说的就地更新方式直接改写水物质与温度场。
 
 几个工程细节（全部源码实测）：
 
@@ -917,16 +907,18 @@ $$N(D) = N_0\, D^{\mu}\exp(-\lambda D)$$
 
 `mp_gt_driver` 是模块内唯一的主子程序（其余只有 `thompson_init` 与几个工具函数 `calc_effectRad`/`RSLF`/`RSIF`/`GAMMCF`/`GSER`）。它的执行顺序（实读结构）：
 
-```mermaid
-flowchart TB
-    A["装入：3D 变量 → 逐列 1D 数组（temp/pres/qv1d…）<br/>由 θ·π 还原温度、由 ρ 与 qv 还原密度"] --> B["计算 qvs=RSLF(p,T)、ssatw=qv/qvs−1<br/>更新扩散率 diffu、粘度 visco、Lv(T)、ocp、lvt2"]
-    B --> C["过程速率段（多个 do k 循环）：<br/>① 冰核化/冻结（Bigg、Cooper/DeMott、Koop）<br/>② 沉积/升华增长（冰、雪、霰）<br/>③ 云水凝结/蒸发（饱和调整，13.7.4）<br/>④ 碰并收集（tu 表：雨-云、雪-云、霰-云、雨-冰…）<br/>⑤ 自动转化（云水→雨、冰→雪）<br/>⑥ 融化/冻结/淞附"]
-    C --> D["守恒约束（五物种逐一限幅 + 成对项强制，13.7.5）"]
-    D --> E["倾向装配 + 尺寸/数浓度硬约束（云水 1–50 μm、冰 5–300 μm、雨 MVD 范围…）"]
-    E --> F["更新 T/ρ/qv/qvs → 饱和调整的守恒核对<br/>→ 有效半径 calc_effectRad（13.7.7）"]
-    F --> G["下沉（sedimentation）与地面降水通量累加<br/>→ pcp_ra/pcp_sn/pcp_gr/pcp_ic → RAINNC 等"]
-    G --> H["可选：REFL_10CM 雷达反射率（module_mp_radar）"]
-```
+**Thompson 方案 `module_mp_thompson.F` 逐阶段**（详见 ch13 §13.7）：
+
+1. **变量装入**：3D → 逐列 1D 数组（`temp/pres/qv1d…`），由 θ·π 还原 T、由 ρ 与 qv 还原 ρ
+2. **热力学准备**：`qvs=RSLF(p,T)`、`ssatw=qv/qvs−1`；更新扩散率 `diffu`、粘度 `visco`、`Lv(T)`、`ocp`、`lvt2`
+3. **过程速率段**（多个 `do k` 循环）：① 冰核化/冻结（Bigg、Cooper/DeMott、Koop）② 沉积/升华增长（冰、雪、霰）③ 云水凝结/蒸发（饱和调整）④ 碰并收集（雨-云、雪-云、霰-云、雨-冰…）⑤ 自动转化（云水→雨、冰→雪）⑥ 融化/冻结/淞附
+4. **守恒约束**：五物种逐一限幅 + 成对项强制
+5. **倾向装配** + 尺寸/数浓度硬约束（云水 1–50 μm、冰 5–300 μm、雨 MVD 范围…）
+6. **更新 T/ρ/qv/qvs** → 饱和调整的守恒核对 → `calc_effectRad`（有效半径）
+7. **下沉 sedimentation** + 地面降水通量 → `pcp_ra/pcp_sn/pcp_gr/pcp_ic` → `RAINNC` 等
+8. **可选**：`REFL_10CM` 雷达反射率（`module_mp_radar`）
+
+
 
 **查表策略**（方案性能的关键）：`thompson_init` 预先算出十几族查找表并驻留内存——粒径谱 100 档（`nbins=100`）；云水含量档 37 档（1E-6→1E-2 kg/m³）、云冰 64 档、雨/雪/霰 37 档；雨截距 `N0r`/霰截距 `N0g` 各 37 档（1E6→1E10 / 1E2→1E6）；冰数浓度 `Nt_i` 55 档（1→1E6）；冰核数 `Nt_IN` 55 档；**气溶胶查表**（数浓度 `ta_Na` 10→10000、上升速度 `ta_Ww`、温度 `ta_Tk` 7 档、平均半径 `ta_Ra`、吸湿性 `ta_Ka`）；温度档 `Tc` 9 档（0 到 −40 ℃，每 5 ℃）。大表族包括碰并/冻结/自动转化/蒸发等（`tcg_racg`、`tpi_qcfz`、`tps_iaus`、`tpc_wev`…）。
 

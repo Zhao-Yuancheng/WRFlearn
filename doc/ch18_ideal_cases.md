@@ -26,21 +26,9 @@
 
 ### 18.0.2 两条链
 
-```mermaid
-flowchart LR
-    subgraph REAL["真实个例链（ch06–ch08 走过的）"]
-        A1[ERA5 GRIB] --> A2[ungrib] --> A3[metgrid] --> A4[real.exe] --> A5[wrf.exe]
-        A4 -.->|写| A6[wrfinput_d0N + wrfbdy_d01]
-        A5 --> A7[wrfout_d0N<br>带投影/嵌套/地图因子]
-    end
-    subgraph IDEAL["理想实验链（本章）"]
-        B1[input_sounding<br>或 input_jet] --> B3[ideal.exe]
-        B2[namelist.input<br>含 &ideal] --> B3
-        B3 --> B4[wrfinput_d01<br>MAP_PROJ=0]
-        B4 --> B5[wrf.exe]
-        B5 --> B6[wrfout_d01]
-    end
-```
+![ch18_ideal_cases_01](figs/mermaid/ch18_ideal_cases_01.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch18_ideal_cases_01.mmd -->
 
 一句话概括两链差别：**真实链的初值是“数据”，理想链的初值是“代码 + 一个文本剖面”**。
 
@@ -215,19 +203,9 @@ INTEGER, PARAMETER :: les = 9
 
 ### 18.3.3 双钥匙机制总图
 
-```mermaid
-flowchart TD
-    A[./compile em_les] --> B[顶层 Makefile 规则<br>IDEAL_CASE=ideal]
-    B --> C[main/Makefile 链接<br>ideal.exe = ideal_em.o + module_initialize_ideal.o + 库]
-    A --> D[wrf.exe 构建<br>与 IDEAL_CASE 无关]
-    E[namelist &ideal<br>ideal_case=9] --> F[Registry 包<br>les=9]
-    F --> G[SELECT CASE<br>constants/landmap/levels/sounding/terrain/pert/surfacet/...]
-    C --> H[ideal.exe 运行]
-    G --> H
-    H --> I[wrfinput_d01<br>this_is_an_ideal_run=.TRUE.]
-    D --> J[wrf.exe]
-    I --> J
-```
+![ch18_ideal_cases_02](figs/mermaid/ch18_ideal_cases_02.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch18_ideal_cases_02.mmd -->
 
 **给使用者的三条结论**：
 

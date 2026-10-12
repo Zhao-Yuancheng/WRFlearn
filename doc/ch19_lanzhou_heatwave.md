@@ -72,17 +72,20 @@
 
 ### 19.2.1 数据链
 
-```mermaid
-flowchart LR
-    A["ERA5 月 GRIB<br>（liuyl17 共享区）"] --> B[link_grib.csh]
-    B --> C["ungrib.exe<br>Vtable.ECMWF"]
-    C --> D["FILE:YYYY-MM-DD_HH<br>（21 个时次）"]
-    E["WPS_GEOG 静态数据<br>/opt/app/wrf/WPS_GEOG"] --> F["geogrid.exe<br>GEOGRID.TBL.ARW"]
-    F --> G["geo_em.d01/d02.nc"]
-    D --> H["metgrid.exe"]
-    G --> H
-    H --> I["met_em.d01/d02.*<br>（42 个文件）"]
+**兰州个例 WPS 预处理数据流**：
+
+```text
+ERA5 月 GRIB ──→ link_grib.csh ──→ ungrib.exe（Vtable.ECMWF）
+（liuyl17 共享区）                   └── FILE: YYYY-MM-DD_HH（21 个时次）
+
+WPS_GEOG 静态数据 ──→ geogrid.exe（GEOGRID.TBL.ARW） ──→ geo_em.d01/d02.nc
+（/opt/app/wrf/WPS_GEOG）
+
+geo_em.d01/d02.nc ──┐
+FILE:YYYY-MM-DD_HH ─┴──→ metgrid.exe ──→ met_em.d01/d02.*（42 个文件）
 ```
+
+
 
 各步骤职责与源码接口在 ch06 已详解；本节只记本次实例的关键口径：
 

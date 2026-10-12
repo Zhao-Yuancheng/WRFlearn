@@ -442,3 +442,144 @@
 - **用户问题**：ch15 案例一（MSKF CMT）是否官方已接纳、进 source/？——**是**。实证：① `phys/module_cu_mskf.F` 行 5 `!JTR = Jacob Radford, NCSU`、行 18 特性清单"（7）CMT: Zhang&McFarlane JGR 1995"、行 3630-3635 `cmt_opt_flag=.TRUE.`（硬编码默认开，非 namelist）；② WRF 4.2 release notes（2020-04-23）原句收录；③ Registry line 68 有 `# CDXWRF modification` 标记（CORDEX 亦已上游化）。
 - **修订三处**：ch15 案例一改"情况①·已上游化"+ 源码证据 + release notes 原句 + 教学点补"改造生命周期"；案例二（NTiedtke scale_fac）、案例三（bmj_rad_feedback/GFL）同标注已上游化；ch01 §1.6.2 情况①再分两小类（已上游化/外部补丁）+ 判别三标志（署名注释/Registry 改造标记/release notes）。
 - **待办已清偿（2026-10-11 下午第二轮，用户追问"情况①但未上游化"）**：全书以"情况①"逐条检索并标注完成。**未上游化的情况① = 本书原创三案**（ch03 案例三=ch20 L1 T2_PEAK；ch09 案例三=ch20 L3 ALBROF_2D；ch14 案例一=ch20 L2 delt_thv）+ ch08 案例三（运维实录，非代码改造不适用）；**其余情况①全部已上游化**。顺带勘误 ch04 案例二：CORDEX-WRF **在 4.8.0 包内**——`Registry/registry.cordex`（L. Fita CIMA 2017-12；`namelist,cordex`，output_cordex 默认 0）+ `phys/module_diag_cordex.F`/`module_diagvar_cordex.F` + `registry.em_shared_collection` line 34 无条件 include + Registry.EM_COMMON line 68 `# CDXWRF modification`；原"&cdxwrf"更正为"&cordex"。ch20 §20.7.1 表 27 案全部标注"已上游化/未上游化/③"，用法建议加标注约定。ch01 §1.6.2 保持上轮修订。全角引号已重跑（20 文件，12 对转换）。
+
+## mermaid→drawio 图片任务收官（2026-10-11 晚，用户叫停转校阅）- **产出**：doc\figs\mermaid\ 36 张 PNG + workspace\tmp\mermaid\drawio\ 36 张可编辑 .drawio；16 张简单图已在 md 中改为文本（表格/ASCII 链），20 张复杂图保留 PNG，源码存档 workspace\mermaid\（index.json/csv 映射）。md 内引用格式 = 图片 + `<!-- Mermaid 源码 → workspace/mermaid/xxx.mmd -->` 注释。
+- **样式（FDS-UNeXT 风）**：节点 18pt/容器标题 20pt/**edge 标签 28pt**（并入 EDGE_BASE，因转换器把标签放边 value 上）；节点语义分色（源码淡青/物理淡橙/RK 淡紫/边界淡粉/输出淡绿/默认米白，无纯白）；容器 verticalAlign=top。
+- **结构重排（special_layouts.py）**：ch02/ch08 蛇形分行、ch21_05 星树网格分行（11266→2758px）、ch12/ch13 菱形压扁（×1.25 宽 ×0.6 高）、ch18 容器内横排、ch21_02 mmd 从 sequenceDiagram 改 TD 流程链（源文件已改）。
+- **技术教训（FAILED ATTEMPTS 存档）**：① restyle 叠加跑→background 属性×4→渲染全白；必须从 .mmd 重建一次成流（rebuild_all_from_mmd.py）。② 转换器输出 UserObject 包装：id 在 UserObject 上、渲染读 UserObject 的 style——改样式须双写同步。③ edge 标签非独立单元，字号写进 EDGE_BASE 才生效。④ 正交化必须删 curved=1。⑤ 节点重排后须删 sourcePoint/targetPoint，否则导出包围盒爆宽。⑥ PowerShell 引号嵌套 python -c 必挂，一律写脚本文件。
+- **用户裁决**：宽度超 3500px 的其余图（ch03_02/ch04_02/ch06/ch17_02 等）**保持原状不压**；本任务到此为止。
+- **下一任务：批次 5 全书校阅（复查、优化、补充）**——交叉引用（ch13 补微物理时刻交叉注）/内部链接与死链清查/符号统一（附录 a vs 正文）/考点覆盖对照方案 §3.3/全角引号复查；复核清单第 15、16 条共 14 项见 progress.md；持续不标 goal complete。
+
+## 批次 5 全书校阅收官（2026-10-12 凌晨）
+- **五路清查**（脚本 `workspace/scripts/batch5_linkcheck.py`，报告 `workspace/logs/batch5_linkcheck.md`）：26 文件扫得章引用 1237（另 35 处书章引用按"书"前缀豁免）、§小节引用 475、markdown 链接 99、反引号路径 79、文件引用 35、跨章表引用 18、附录引用 13、书页换算 4——章缺失/文件缺失/附录缺失/书页缺失/换算不符/**源码锚点缺失 0**/表缺失全为零
+- **修订 13 处**（详见 verify_log 批次 5 段）：①ch13 §13.6.1 补微物理时刻交叉注（→ch21 §21.2.14，落实复核清单 16②）；②③ch13 "图 13.1"两处改"本节末埃玛图"+图注补 q/r 口径注（r_s=εe_s/(p−e_s) vs 书 (2.2.12b) q_s，标签差 ≤2%）；④⑤ch14 §14.5.1 part1 枚举补"积云"+微物理位置改"RK 循环之后"+"每步多次调用"误表述改写（solve_em.F:588 `dtm = grid%dt` 实证每步一次）；⑥ch14 §14.8.1 E1 补"判据量口径"注（书 (6.8.14) 正式量 θse、E1 以 θe 代用、ch15 E2 θse 复算）；⑦ch21 §21.6 两处 file:/// 绝对链接改反引号体例；⑧app_a a.6 假日志指涉改指 ch11 §11.6+脚本；⑨app_a a.2 补泊松常数 κ_d 行（0.2857，偏差 0.07%）+KARMAN 撞名互注；⑩⑪⑫ch16 §16.0.2 考点标签改"PPT 4 内容页归纳"口径（原"第 4 章课件未到"系笔误——PPT 4 一直在案且全讲无显式考点页）+index §1.2 考点体系说明订正（ch13–ch15 待校准）+修订记录补批次 5 行；⑬ch15:303 "详见 ch13–ch16 + ch21"核实为正确指涉未改
+- **符号统一结论**：θse 全书 $\theta_{se}$ 统一、ε 统一 \varepsilon、p_0/p_{00} 与 g/g_0 均按书公式忠实区分、扰动位温警示六处（ch02/ch10/ch19/app_a/app_c/ch21）一致；κ 双义（泊松 0.286/卡门 0.4）已在 app_a 公证处互注
+- **考点覆盖结论**：7 物理章均有 §N.0.2 考点清单 + 章尾习题/思考题节（含答案）；ch13/14/15 自拟待校准口径正确（第 6 章 PPT 未到）；ch01 掌握要点表齐；ch17 论文2对接节替代（v4 R5 口径）
+- **全角引号终查**：_fix_quotes.py 26 文件复跑全部 converted=0——围栏外英文引号 0，残余全在代码块内（ch04=96/ch11=50/ch20=30 等均为代码/日志语法）按约定保留
+- **误报甄别记录**（将来复查勿重复追查）：ch16 （16.13）–（16.24）为本章自编号方程 \tag 非小节指涉；`doc/README.*` 为 WRF 源码树内文件（ch05 源码锚点表语义清晰）；ch15 书图 10.9/10.18 经 p168 扫描页（page_0182.jpg）实证为书原文交叉引用；ch14/ch15 的"条件性不稳定"用词忠实于书 (6.8.14)（θ↑且θse↓），与 6.9.2"对流性不稳定"的桥接是有意教学线
+- chapter_map.md 无需更新（校阅未改动源码锚点）；复核清单 16② 已办结、其余 13 项待用户回复；五组预留集群实验仍未执行；持续不标 goal complete
+
+## 源码精读配套文库：规划落盘（2026-10-12，用户批准）
+- **用户指令**：把各章延伸阅读源码提取为配套 .md 文库（含关键注释与讲解）；经评价获批；补充要求“按模块导入/依赖关系排列”
+- **定位硬切**：教材=为什么这样写+物理对应（节选导读）；文库=完整源码（保真）+行段中文讲解（独立可读）；不复读教材，公式只给指针
+- **决策**：doc\code\ + code_NN_<模块>.md（NN=拓扑序号；>5000 行 A 级全文拆 _a/_b）；三级收录（A 全文/B 节选/C 头部接口）；不收录 noahmp（248 文件独立库）/module_dm/IO/工具
+- **依赖实测**（Explore agent 对 4.8.0 普查，修正三处假设）：①MYNN 无 module_bl_mynn.F——实体 phys/MYNN-EDMF/module_bl_mynnedmf.F90（8776 行）+ phys/MYNN-SFC/ 四件（4087/1552/1749/2104）；②RRTMG 无子目录，单体 module_ra_rrtmg_lw.F 14633 行 / ra_rrtmg_sw.F 12786 行（**sw 依赖 lw**）；③Noah=drv(5447)+lsm(4759) 双件；bep_bem 共享底座 5706 行（bep 依赖 bep_bem+urban）；④phys/ 无 ghg 文件，C 级外围以 ra_aerosol(1470)/dust_emis(189)+data_gocart_dust(39) 替代；⑤ntiedtke 533 行 0 依赖、constants 159 行 0 依赖（两个天然首读件）；drivers 依赖方案（microphysics_driver 44 项 USE）→ 拓扑序=方案层在驱动器层前
+- **拓扑分层**：L0 底座(01 constants)→L1 方案本体(05–17，段内按教材章序 ch12→ch17)→L2 驱动器(20–24)→L3 动力支撑与枢纽(30 big_step→31 part1→32 part2)→L4 初始化支撑(40 基态段/41 vcoord 段)→L5 内核导航(50 solve_em 一页，正文 ch21 承载)→60+ C 段外围；**共 29 篇底账**
+- **六批生产**：①试点 Thompson(07)+microphysics_driver(21) ②城市/边界层线（论文2 优先：09/10/22/14/15/16/24）③陆面/积云（12/13/11/23）④辐射（05/06/20/60）⑤底座枢纽框架（01/30/31/32/40/41/50）⑥收尾（08/61/62/00 README/教材延伸阅读回填/四件套）
+- **保真**：代码一律 workspace/scripts/code_extract.py 抽取（子程序边界正则+md5+行数指纹，批 1 前建），禁手抄；讲解全角引号、代码块内原样
+- **方案底稿**：workspace/outline/code_library_plan.md（含实测依赖摘要表、29 篇总清单、八段模板、风险红线）；批 1 试点待用户令启动
+- 持续不标 goal complete
+
+## 源码精读文库·批 1 试点收官（2026-10-12，用户令“开始试点”）
+
+- **交付 3 篇**：doc\code\code_07a_module_mp_thompson.md（4790 行，36 保真块）、code_07b_module_mp_thompson.md（2495 行，29 块）、code_21_module_microphysics_driver.md（1428 行，18 块）；合计 83 保真块全部 md5 与源逐位一致
+- **工具沉淀**：workspace/scripts/code_extract.py v1.0（list/full/sub/lines/verify/assemble 六子命令；边界配对含 F77 裸 end 回退——Thompson 末尾 5 个函数 theta_e/t_lcl/t_dew/theta_wetb/compT_fr_The 用裸 end）；check_quotes.py（围栏外半角引号检查）；acceptance.py（块首尾行 vs 源逐字符 + 指涉文件存在性）
+- **骨架-组装工作流**：讲解写在 workspace\code_library\skel_code_NN.md（含 CODE 占位符），assemble 注入保真块生成 doc\code\ 成稿；骨架与成稿需同步修订（本轮已同步）
+- **实测修正三则**：①Thompson 实际 30 个子程序/函数（底账普查漏 Eff_aero/activ_ncloud/iceDeMott/iceKoop 4 个 function）；②USE 6 项无误——module_timing 在 qr_acr_qg 内、module_domain 在 table_ccnAct 内（子程序级 USE）；③driver 签名约 400 实参、44 项 USE 分五组
+- **讲解要点资产**：源汇命名法典（pr/pn+物种+过程，全项恒正）；谱参数三步法（反解 λ→钳位→重算 N）在主实体出现三次；守恒六账（§8.11）；冰核化三来源温度递冷排布；NR 版权四件（GCF/GSER/GAMMLN/GAMMP）已在 07b 标注；compT_fr_The 第四参传 guess 非 TLCL（饱和气块性质，非笔误）
+- **B 级节选范式**（code_21 模式）：抽取十段约 900 行覆盖主线，其余 30+ 同构 CASE 不录；八段模板 1–5 段照常 + 逐段讲解 + 改造入口表
+- **验收**：acceptance.py ALL PASS（21 个抽查块首尾行逐字符一致、指涉缺失 0、半角引号 0）
+- Next：用户复核批 1 三篇 → 定模板终稿 → 铺开批 2（城市/边界层线 09/10/22/14/15/16/24，论文 2 优先）
+
+## 批 1 修订（用户两点反馈，2026-10-12）
+
+- **显示层 v1.1**：所有保真块加源文件行号前缀 `L{05d}  `（如 `L02550  `）+ 块首 `!file: <源路径>    L起-L止` 注释行；md5 指纹仍对**原始内容**计算，verify/acceptance 先剥离显示层再比对（strip_display 校验行号连续性）；三篇重新组装，83 块 verify+acceptance 全过
+- **mermaid 修复**：边标签内半角括号/斜杠触发解析错误（got 'PS'）——07a `CASE (THOMPSON / THOMPSONAERO)` → `CASE THOMPSON 与 THOMPSONAERO`；21 `CASE (THOMPSON / THOMPSONAERO / THOMPSONGH)` → 顿号连接；骨架与成稿同步；节点引号内文本不受影响（仅边标签 `|...|` 禁半角括号）
+- **教训**：用户改过成稿时 re-assemble 前先 diff（本轮 diff=0 无合并损失）
+
+## 批 2 进行中（2026-10-12，用户令“按方案继续处理剩余章节，注意上下文管理”）
+
+- **批 2 清单**（plan §六）：code_09 ✅、code_10 ✅、code_22 ✅、code_14a/14b ✅（bep_bem 5706 行 A 拆两：14a=主入口 BEP_BEM+BEP1D+param..buildings 3086 行/10 块；14b=urban_meso..查询函数 3166 行/26 块；关键：ind_* 索引折叠表=论文2「标量→场」先例；flux_flat_ground 无调用方=休眠；upward_rad <100K 硬 stop 哨兵；三处厚度数组需一致 param/surf_temp/roof_temp_veg）、code_15 ✅（bep 单独版 3770 行/28 块：与底座同源单元给差异注记回指 14a/14b；cdrag=0.4 常数 vs 底座 NEW CDRAG；angle 未被调用；BEP 版 surf_temp 一件管三面 vs 底座交给 BEM）、code_16 ✅（bem 3009 行/27 块：论文2 主改造对象；cop/beta/targtemp 等全是类级标量待场化；wall/wall_gr 的 swwal+save 系数缓存=场化第一性能陷阱；空调「一步拉回+temp_rat/hum_rat 限速」是废热唯一来源；air_cond 制冷废热=(1+1/cop)式）、code_24（surface driver 7428 B 两族选段）←当前
+- **code_22 关键事实**：Registry 方案号 1YSU/2MYJ/3GFS/4QNSE/5MYNN-EDMF/7ACM2/8BouLac/9CAMUW/10TEMF/11ShinHong/12GBM/16EEPS/17KEPS(城市k-ε)/99MRF(无6号;98 surfdrag 仅 WRFPLUS)；触发节拍四测试（首步/bldt=0或stepbl=1/mod/自适应到点）；DTBL 分钟口径；u_phytmp=移动嵌套参考系（QNSE 另用为 WTHV_MF/LM_BL89 传送带）；idiff 硬编码 0（Martilli diff3d 隐式统一扩散=休眠代码）；MYNN 分支 16 项 PRESENT 守卫+SPP Add/Remove 包裹+scalar_tend 回填（数浓度倾向绕过 physics_addtendc）；风机 fitch/mav 与 GWD(gwdo/gwdo_gsl)/雾沉降 fogdes/AHE(distributed_ahe_opt=1，ahe/1200/dz 进最低层 RTHBLTEN)四个附加模块；SPP Remove 对 q 用除法、对 qke 用减法（防负）；invert=托马斯消元原地破坏
+- **验收状态**：acceptance 全量 219 块 ALL PASS、八篇引号干净、指涉缺失 0
+- **基建升级**：①code_extract.py 支持自由格式（is_free_format 按扩展名 .f90/.f95/…，C 开头不再误判注释）；②acceptance.py v2 自动全量（glob doc/code/code_*.md，按指纹 source 定位源文件，剥离显示层逐块比对 md5+行号连续性，零维护）；③check_quotes.py 撇号豁免（贴字母的 ' = O'Gorman 人名/c'/d' 与 w'q' 数学 prime，非引号）
+- **code_09 完成**：doc\code\code_09a_module_bl_mynnedmf.md（4270 行/27 块：文件头版本史 V1-V6、主入口 8 段、mym_initialize 5 次迭代、mym_level2 含 O'Gorman ess、mym_length 三 CASE、boulac 双长度、mym_turbulence HL89+L3、mym_predict Crank-Nicolson、mym_condensation 云 PDF 三选）+ code_09b_module_bl_mynnedmf.md（5310 行/30 块：mynn_tendencies 五段九变量、moisture_check 柱守恒、mix_chem 火点增强、tridiag 三兄弟语义差异、GET_PBLH 混合诊断、DMP_mf 五段八羽谱、condensation_edmf 三件不动点、ddmp_mf 三段辐射下沉、SCALE_AWARE 灰区、blend 三函数（与 Thompson RSLF/RSIF 同源！JAYMES 注释自承）、phim/phih Puhales 2020、topdown_cloudrad）
+- **讲解要点资产（09）**：MYNN-EDMF 实参全 *1 后缀单列、FLAG_* 在场标志；qke=2TKE、sq=specific q（主入口转混合比）；mym_length CASE1 默认（非局地 BouLac 混合+MF 长度 elb_mf+飓风/灰区调参）；DMP_mf 触发三条件（Psig_w 可分辨运动衰减/超绝热判据 hux=水面−0.0024 陆地−0.0030/羽流五判据 maxwidth≥300m）；d=−1.9 Neggers 幂律；entfac=0.21·f(qke)/(w·l) Tian-Kuang；通量限制器 0.75；tkeprod=w³·a/(b1·el) 上下限 4e-4；MF 云量 CB05 atan 公式含四代考古；blend 函数 240~267.15K 混合；GET_PBLH delt_thv 水面 0.75/陆地 1.25 K；tridiag2 保留输入、tridiag3 就地破坏——换求解器须查复用
+- **code_10 完成 + 关键事实**：doc\code\code_10_module_sf_mynnsfc.md（5060 行/52 块，多源六文件）。WRF 4.8.0 运行线 = surface_driver CASE(MYNNSFCSCHEME, sf_sfclay_physics=5) → mynnsfc_driver（phys/MYNN-SFC/WRF/，906 行，xland/雪深5cm/xice 三路分派，ψ 表以实参传入）→ mynnsfc_land/_water/_ice 三件套；module_sf_mynnsfc.F90（SFCLAY_mynn/SFCLAY1D_mynn）是 CCPP-FV3 单柱孪生线，WRF 不直接用但物理同构、注释最全 → 作主讲底本。权威文献 Olson et al. 2021 NOAA TM OAR GSL-67。选项编号双轨：WRF 线 sf_mynn_sfcflux_land(默认0 Zil1995)/water(默认1 COARE3.5)，CCPP 线 iz0tlnd/isftcflx 编号不同（code_10 §6.1 对照表）。phys/MYNN-SFC/tests/ 有独立回归黄金文件（改造验证用）。znot_m/t_v6/v7 在 module_sf_exchcoef.F 有同名拷贝（改需同步）
+- **工具升级（code_10 期间）**：code_extract.py v1.2 多源 assemble（占位符 {{CODE:<WRF根相对路径>:key}}，SourceBook 缓存，root=WRFV4.8.0 目录本身）；新增 workspace/scripts/fp_files.py（篇首指纹表）。**教训**：PowerShell 不支持 heredoc，python 内嵌脚本一律写脚本文件
+- **批 2 全部交付（2026-10-12）**：11 篇（07a/07b/21 + 09a/09b/10/22/14a/14b/15/16/24）全在 doc\code\，acceptance 全量 **315 块 ALL PASS**、引号干净、指涉缺失 0。批 2 清单全部 ✅。**Next**：等用户复核批 2 体例 → 批 3（陆面/积云线：code_12 Noah lsm、13 noahdrv、11 ntiedtke、23 cumulus driver）按同流程继续；工具链与模板已固化，新会话按 notes+progress 交班即可恢复。
+
+## 插图管线变更：用户手动 drawio 为唯一现行源（2026-10-12）
+
+- **新流程**：用户在 draw.io 桌面版手动编辑 `workspace\tmp\mermaid\drawio\*.drawio`（35 张，唯一现行源）→ `reexport_pngs.py` 导出 PNG 到 `doc\figs\mermaid\`。旧 mermaid→drawio 自动管线**作废，勿再运行 rebuild_all_from_mmd / extract_mermaid_sources**。已清理 115 弃用文件（drawio_clean/ 36、drawio_final/ 36、36 个 .mmd、test 3、旧管线 JSON/CSV 3、孤儿 ch02_wrf_evolution_01.png）
+- **灰框修复（strip_label_border.py）**：边线标签灰描边框根因 = restyle 管线 EDGE_BASE 的 `labelBorderColor=#cccccc`（538 处/34 文件）；已全部删除，白色 `labelBackgroundColor=#ffffff` 保留（遮住标签压住的连线，白页不可见）。35 PNG 重导成功，抽查 ch06/ch21_05 验证无灰框、遮线正常
+- **待确认删除**：`workspace\mermaid\`（20 个 ch*.mmd + index.csv + index.json，22 项）= 第一轮抽取器输出（extract_mermaid_sources.py:27），原始 mermaid 源在 doc 正文 HTML 注释仍有备份，可重建——已列清单等用户确认
+- drawio 目录内 `.$*.drawio.bkp` 为 draw.io 编辑器自动备份（导出 glob 不含），暂留
+- **文库图入管线（2026-10-12，用户令「doc\code 的 mermaid 转 drawio，人工改后下轮出图」）**：`code_mermaids_to_drawio.py` 提取 doc/code 20 篇各 1 个 mermaid 块（README 命中为讲解文字非代码）→ mmd 存 `workspace\tmp\mermaid\mmd_code\`（中间产物，可重建）→ draw.io CLI -f xml 转 drawio → restyle 套样式 → `drawio\code_*_01.drawio` 20 张（code_ 前缀与教材 ch* 图并存同目录）。**本轮不导 PNG**；下轮 reexport_pngs.py 会全量重导（教材 35+文库 20）
+- **根治灰框**：EDGE_BASE/EDGE_LABEL 常量中 `labelBorderColor=#cccccc` 已删（上轮只清了文件没改常量，新转换会复发）；重转后 20 张图 labelBorderColor=0、fontSize=28 共 330 处 ✓。教训：**清理样式要连源头常量一起改**
+- 勘误：PowerShell `-match` 不区分大小写，`mermaidBaseStyle="` 会被 `style="` 的 pattern 误抓（排查时差点误判 restyle 未生效）；真实样式看 ` style="`（含前导空格）
+- **导出修复（2026-10-12 用户改完文库图后）**：首导发现 PNG 画布虚高+内容截断（code_50 逻辑 445x1277 输出 4000x8135 仅渲染 73%；ch15_01 同病 84%）——**根因是 draw.io CLI 的 `--width`**：内容宽×scale 未达 --width 上限时触发非等比 bug（与 --scale 同传或单传均复现）；`--scale` 单传完美等比。已改 export_png 弃用 --width 只用 --scale 2，55 张全量重导，全检无截断（矮横条图 y 占比 76-89% 为边缘自然空隙非缺陷）。**教训：CLI 参数"上限保护"类描述不可信，以对照实验实测为准**；诊断脚本沉淀 diag_code_png_crop/diag_geometry/diag_points/diag_hidden/diag_dupids/diag_png_density（scripts/），实验残留在 tmp/mermaid/diag_tmp/（可删）
+- mmd 文件名口径：drawio 的 `code_NN_slug_01` 中 `_01` 是序号后缀，对应 mmd 为 `code_NN_slug_01.mmd`（md 文件名 stem + 序号）
+- **文库 mermaid 回填（2026-10-12，用户令「注释掉并插入图片」）**：`backfill_code_mermaid_images.py` 把 doc/code 20 篇的 mermaid 块替换为 `![label](../figs/mermaid/<stem>.png)` + `<details>` 折叠的 HTML 注释源码（与教材体例同构，路径 ../figs/ 因文库在 doc/code/ 子目录）；幂等可重跑；验证 20 引用全存在、check_quotes 无违例、漏网 0。**骨架 skel_code_NN.md 仍持原生 mermaid——将来 re-assemble 会冲掉成稿回填，届时重跑本脚本即可**
+
+## 源码文库批 3 交付记录（2026-10-12，用户令「继续处理批 3」）
+
+- **交付五篇**：doc/code/code_12a_module_sf_noahlsm.md + code_12b_module_sf_noahlsm.md（Noah 本体 4759 行 31 单元全收，A 级拆两：12a=文件头+SFLX+蒸发热力线 13 单元/14 块；12b=REDPRM 起参数查表/隐式求解器/雪线 18 单元/18 块）、code_13_module_sf_noahdrv.md（驱动外壳 B+C 级/14 块）、code_11_module_cu_ntiedtke.md（CCPP 外壳 533 行 A 级全文/5 块）、code_23_module_cumulus_driver.md（积云调度器 B 级/12 块）。骨架在 workspace/code_library/skel_code_{11,12a,12b,13,23}.md
+- **验收**：acceptance.py 全量 **378 块 ALL PASS**（17 篇文库）；批 3 五篇 check_quotes 全 0 违例；指涉 26 文件缺失 0（批 2 遗留的 code_12a/12b→code_13 前向引用已闭合）
+- **关键新事实（写教材时可用）**：
+  1. **physics_mmm 子模块不在本源码树**——WRF 根无该目录（git clone 未带子模块），cu_ntiedtke_run 全树仅外壳一处引用、phys/ 内无定义；code_11 按「外壳全文 + 调用点实参对照（L219–226）」成篇；实体精读须取发行包 physics_mmm/ 再按同体例补录
+  2. noahlsm：SFLX 收尾 **DO K=1,4 的 ET 能量换算硬编码四层**（NSOIL≠4 实验陷阱）；IRRIGATION_CHANNEL 透传链 SFLX→NOPAC→SMFLX（PCPDRP+=0.001·IRRIGATION_CHANNEL）；LSMINIT 冻土层用 Flerchinger 显式初猜+FRH2O 牛顿精化初始化 SH2O；SFLX 雪层导热三均值注释三选、实际按 SNCOVR 线性混合 harmonic/arithmetic；WRF 里 CSNOW 雪导热 ×2.0 经验翻倍；ALCALC 融雪期 SNTHWA 曲线被注释（全年用积雪期 SNACCA）
+  3. noahdrv：**海冰点 ICE=1 直接 CYCLE 跳过 LSM**（通量全靠 PBL 面层方案）；冰川走独立文件 module_sf_noahlsm_glacial_only 的 SFLX_GLACIAL；SFLX 调用 CH 位传 CHK=CHS——实证 SFCDIF_off 在 WRF 主线休眠；NOAHRES 能量残差式（排错第一现场）；单层 UCM 的 IRI 定时灌溉（5–9 月 21–22 时补湿到 REFSMC）与 AOASIS 挂点仅限 sf_urban_physics=1（与 BEP/BEM 组合 FATAL）；BEP/BEM 聚合=源项×FRC+第一层乡村补全+质量通量聚合+长波四次方根反演；TBL 读取双段式（monitor 读+dm_bcast）且 VEGPARM 强制校验 LCZ_1..11（老 TBL 配新代码会报错）
+  4. cumulus driver：cudt 四测试门控（cudt 分钟→stepcu 周期；自适应 dt 用 cudtacttime 物理时刻推进）；**RTHFTEN 前期倾向组装 (RTHFTEN+RTHRATEN+RTHBLTEN)·pi 仅对 G3/NTIEDTKE**（旧 Tiedtke 只吃 RQVBLTEN）；SAS 三兄弟自适应 dt 直接 FATAL；G3 后处理 cu_physics==5 **硬编码数字** + conv_grell_spread3d 平滑并账；KFCUP 不回 PRATEC 需手工 tmppratec=raincv/DT；aer_time_int 的 Dec–Jan 环绕插值、aer_p_int 的 top-down 数据层翻转
+- **批 3 事实订正（2026-10-12，用户复核指出）**：physics_mmm **在**本源码树——正确路径是 `phys/physics_mmm/`（此前只查 WRF 根目录漏了 phys/ 子目录）；cu_ntiedtke.F90 实体 3594 行/15 单元/md5 104dcb4bf2cee44771b8567c5d8056dc（cumastrn 744 行=主实体，教材 ch15 已精读）。code_11 的 §二/§八 已订正（skel+成稿同步手改、未重组装）；plan 的「physics_mmm 目录不收录」取舍不变，实体按对照注记收录。**教训：目录核查要下探一层。**
+- **Next**：批 4（plan §六辐射线：code_05 rrtmg_lw、06 rrtmg_sw、20 radiation_driver、60 ra_aerosol）用户已令执行；教材复核清单仍余 13 项待回复
+
+## 源码文库批 4 交付记录（2026-10-12，用户令「执行批4」）
+
+- **交付四篇**：doc/code/code_20_module_radiation_driver.md（辐射驱动器 5710 行/26 块）、code_05_module_ra_rrtmg_lw.md（14633 行/8 块）、code_06_module_ra_rrtmg_sw.md（12786 行/11 块）、code_60_module_ra_aerosol.md（1470 行/3 块 C 级）。骨架 skel_code_{05,06,20,60}.md
+- **工具升级：code_extract.py 扫描器改栈式配对**——原实现撞上 taumol 的 CONTAINS 嵌套（taugb1..16 内部函数）报「END 配对名不符」；新扫描器支持 F90 嵌套（内层单元先入表）。回归：noahlsm 31 单元边界逐位一致、code_12a verify 通过。**教训：F90 CONTAINS 嵌套是扫描器盲区，遇到 RRTMG/noahmp 类文件前先验**
+- **验收**：全量 **426 块 ALL PASS**（21 篇）、指涉 31 文件缺失 0、批 4 五篇（含订正后的 code_11）引号 0 违例
+- **关键新事实（写教材 ch12 时可用）**：
+  1. **sw 依赖 lw 的模块级落实**：module_ra_rrtmg_sw.F 不自带 parkind，`use parkind` 从 module_ra_rrtmg_lw.F 导入（parrrsw 首行）——LW 必须先编译
+  2. **RRTMG 双方案不对称三则**：①CO2——SW 侧有年增长函数 co2=(280+90·exp(0.02(yr−2000)))·1e-6（v4.2 加）且经 CO2MULT（355 ppm 基准增量系数）进计算，LW 侧固定 2005 值；②McICA 种子——SW permuteseed=1 vs LW=150（随机噪声不可比）；③太阳常数——parrrsw 内置 1368.22 W/m² vs radconst 的 1370·ECCFAC
+  3. radiation_driver：**LW 案 RTHRATENLW=RTHRATEN 直接占用、SW 案 RTHRATEN+=RTHRATENSW 叠加**——先 LW 后 SW 的调用序隐式依赖（重排分发=符号灾难）；水物质备份/恢复链（cal_cldfra3 的 modify_qvapor 会改 qv）；radt 四测试与积云同构但带 ra_call_offset；calc_coszen 调用点 xtime+radt·0.5 区间中点（ch12 发现的文库出处 L1206-1208）
+  4. 云量三案（icloud）：1=Xu-Randall 1996 三参数（100/0.49/0.25）+KF punch-through；2=1e-6 阈值二值；3=Thompson 2014 尺度感知（RH_00 随格距 0.77→0.99、HRRR/GFS 双口径 RH 钳 1.45/1.05、modify_qvapor 保证 1.005 倍冰面微过饱和）
+  5. RRTMG_LW：k 分布全套数据结构（KA(5,13,MG) 四角插值、LAYTROP 分层、12 个次要气体比率、水汽自/外连续谱）；taugb1 的 corradj 经验修正；rtrnmc 变扩散角 1.50-1.80 随柱水汽、**注释自认云内误差 1-4 W/m²**；LW 气溶胶只吸收不散射（ssaaer 注释 for future expansion）；OLR 取 TOA（Cavallo 2010 修正）；lwcldpr 休眠（imca=1 固定 McICA）
+  6. RRTMG_SW：delta-M 标定链（taormc 未标定版 vs taucmc 标定版、ssaliq=ω(1−g²)/(1−ωg²)、Fu 1996 A.3 矩混合）；Barker 两流 kmodts 三选（Eddington/PIFM/离散纵标）；反照率谱段归属（NIR=波段1-9+14 用 aldir、UV/vis=10-13 用 asdir）；WRF_CHEM 气溶胶 4 波长→14 波段 Angstrom 展开 + AOD>6 钳位护栏；近红外/可见反照率四分量 SSiB 输出（Zhenxin）
+  7. code_60：aer_type=1 农村/2 城市/3 海洋（只进 opt=3 参数化分支）；Angstrom 指数下限 −0.3（Gueymard）；aod550_opt=2 走 auxinput15
+- **Next**：批 5（底座/枢纽/框架：code_01/30/31/32/40/41/50）待用户令；教材复核清单仍余 13 项待回复
+
+## 源码文库批 5 交付记录（2026-10-12，用户令「执行批 5」）
+
+- **交付七篇**：doc/code/code_01_module_model_constants.md（159 行 A 轻全文逐常数注释/1 块）、code_30_module_big_step_utilities_em.md（6758 行/6 块）、code_31_module_first_rk_step_part1.md（2027 行/10 块全调用段）、code_32_module_first_rk_step_part2.md（1132 行/11 块）、code_40_module_initialize_real.md（9214 行基态段/7 块）、code_41_nest_init_utils.md（1184 行/2 块）、code_50_solve_em.md（5197 行 C 级导航页/0 块纯地图）。骨架 skel_code_{01,30,31,32,40,41,50}.md
+- **验收**：全量 **463 块 ALL PASS**（28 篇）、指涉 39 文件缺失 0（中途发现两处修复：code_40 漏组装、ch07 引用名笔误 ch07_real_and_namelist→ch07_real_namelist）、批 5 七篇引号 0 违例
+- **关键新事实（写教材 ch21/ch10/ch07 时可用）**：
+  1. **part1 全调用段**（10 块含五大驱动器完整实参表）：物理倾向清零 rk_step=1 硬编码；phy_prep 是动力↔物理翻译官（grid%p_hyd 静水压进物理）；pre_radiation_driver 自承「only for non-local shadowing」；surface 段 605 行实参（灌溉全家桶/Noah-MP opt 22 项/SSiB 40 项/BEP 源项）；**fire 三选**（0 关/1 CFBM 耦合/2 fire_driver_em_step）；**convtrans_prep 在 cumulus 之后**（GD 云水→辐射 CuP）——辐射用的积云云量是上一步的
+  2. **part2**：微物理不在此（solve_em RK 后直调）；calculate_phy_tend→update_phy_ten 的两段记账；**HALO_EM_PHYS_CU 八方案名单**（SAS/TIEDTKE/NTIEDTKE/MSKF/CAMZM/SCALESAS/NSAS/KSAS——恰好是带动量倾向的积云方案，与 code_23 各案不传 RUCUTEN 交叉印证）；SKEBS/SPPT/multi_perturb/spp_conv/pbl/lsm 五连随机；**PLANET damptop 故意断编译彩蛋**（INTENTIONALLY PLACED HERE TO BREAK COMPILE）；垂直扩散仅 bl_pbl_physics=0 时做（防双重混合）；km_opt=5 隐式垂直扩散
+  3. **calc_p_rho_phi**（ch10 公式源码本体）：非静力 hypsometric_opt=1/2 双式（TKW 2010 对数气压厚度的 1/12(dp/p)³ 修订）；VPOW 向量幂（libmassv）；静力模式自顶向下积分且**气压由干空气 μ+水物质重量共同承担**（qf1=Σmoist）；cvpm=−cv/cp 口径 vs 非静力分支 cpovcv
+  4. **phy_prep**：rho=1/alt·(1+qv)；p8w 顶边界 ln(p) 外插（bug fix 注释——线性外插可出负值）；p_hyd 自 p_top 静水积分（(1+Σmoist)(c1·mut+c2)·dnw）——物理吃的静水压分量成形处
+  5. **code_41**：hybrid_opt 四选（0/1 标准 σ、2 Klemp 多项式五系数 B1..B5、3 sin²）；c1=dB/dη 半层差分（kds=1/kde 混合时 0）；**单调性校验逐列 FATAL「reduce etac」**（高地形经典报错）；compute_eta 的 prac_levels=59「silly levels」估算 ztop、**dz≥max_dz FATAL「Add more levels for e_vert」**、前 8 层固定近地面
+  6. **code_40 基态五段**：p_surf hypsometric 解析反解（p00·exp(−t00/a+√((t00/a)²−2ght/a/rd))）；**两段式基态温度**（对流层 t00+A·ln(pb/p00)、pb<p_strat 切 tiso+A_strat·ln）；t_init 扰动口径减 t0；**「similar to what the model does」的初值同源原则**（al 由 ph_2 几何差分反解、p 再走状态方程）；**500 hPa 高度调整迭代**（adjust_heights：ln(p) 插值 z500 与 metgrid 差→dpmu 反推 MU_2，<5 次、容差 10 Pa）
+  7. **code_50 导航页**：六锚点行号（L812 part1/L850 part2/L1284 advance_uv/L1397 advance_mu_t/L1504 advance_w/L3881 microphysics_driver）
+- **Next**：批 6 收尾（plan §六：code_08/61/62/00 README、教材延伸阅读回填）待用户令；文库 29 篇底账已完成 28 篇；教材复核清单仍余 13 项待回复
+
+## 源码文库批 6 交付记录（2026-10-12，用户令「执行批 6，注意上下文管理」）——文库主体收官
+
+- **交付四篇**：doc/code/code_08_module_dust_emis.md（189+39 行/2 块，dust+gocart 合一）、code_61_noah_seaice_glacial.md（502+1291+1280 行/3 块，海冰两件+冰川件合一，同源差异注记表）、code_62_shallowcu_fire_fdda.md（767+149+626 行/3 块，fire 包装层 149 行全文）、code_00_README.md（总纲：双轨读法+29 篇目总表+体例约定+四条阅读路径）。骨架 skel_code_{00,08,61,62}.md
+- **验收**：全量 **471 块 ALL PASS**（32 个 md 文件）、指涉 43 文件缺失 0、批 6 四篇引号 0 违例
+- **工具升级（code_extract.py 第二处）**：load_lines 增加 **CRLF/CR 行尾归一化**——module_data_gocart_dust.F 是文库 32 个源文件中唯一的 CRLF 文件（39 CR/39 LF），原实现使显示层混入孤 \r（acceptance 报「无行号前缀 ''」，每行后多一空行）；归一化后该文件块指纹为归一化口径（字节 md5 936c… 仍由 fp_files 按原始字节计，code_08 篇内已注明）。**教训：混行尾源文件先查 CR 计数**
+- **关键新事实**：
+  1. **海冰/冰川件是 noahlsm 的裁剪孪生**：常数经 `USE module_sf_noahlsm` 导入（RD/SIGMA/CPH2O/CPICE/LSUBF/EMISSI_S，seaice 加 HSTEP、glacial 加 ROSR12+LVCOEF_DATA）——三文件常数/求解器单点维护；**雪导热 ×2 翻倍只在陆地件**（seaice/glacial 的 CSNOW 不翻倍）
+  2. fire WRF 包装层全透明（149 行）：fire_driver_em_init=irun 1/2、step=irun 3..6+fire_test_steps；**火倾向出口=rthfrten/rqvfrten**（fire_tendency 按 fire_ext_grnd/crwn/crwn_hgt/sfc_flx/heat_peak/tg_ub 六参数衰减廓线注入）——part2 update_phy_ten 里「fire」注释的那两个数组的来源；「FIRE works on domain by 1 smaller」边界诚实注释
+  3. fddagd_driver：ndg_old/new 双时刻分析场线性插值到 xtime；倾向出口六件（含 RMUNDGDTEN——mu 也有 nudging）；SDA_HFX/SDA_QFX 与 fasdas 交互
+  4. shallowcu_driver：与主积云平行的第二通道（shcu_physics 独立编号）；CAMZM/CAMUW 浅对流诊断全家经 OPTIONAL；SPP 加减对同构 radiation_driver
+  5. dust：bulk_dust_emis 输出 **nifa2d 数浓度（#/kg/s）直接进 QNIFA**——「沙尘→CCN→微物理→辐射（aer_opt=3）」免 chem_opt 轻链条；gocart 数据底座含海盐九 bins；**porosity 19 类表与 noahlsm MAXSMC 同值不同源**
+- **底账状态**：29 篇目完成 28 篇——**唯一余项 code_17（module_sf_urban.F，5620 行 B 级 SLUCM 节选）**：plan 批次表漏排（五批均未含 17），且教材 ch17 已有 SLUCM 精读；待用户裁决补录或豁免。批 6 的「教材延伸阅读回填」改为 code_00 README §二的章序映射表承载（避免批量改动已复核教材章节，待用户确认是否仍需逐章回填）
+- **Next**：code_17 补录裁决 + 教材延伸阅读回填方式 + 教材复核清单余 13 项，均待用户令
+
+## 源码文库 code_17 补录（2026-10-12，用户裁决「code_17 补录，教材不回填」）——文库齐账 29/29
+
+- **交付**：doc/code/code_17_module_sf_urban.md（5620 行/9 块 B 级节选：文件头+Macdonald 几何与 NUDAPT SVF+屋顶双方案+绿屋顶段+峡谷 CH_SCHEME+收尾加权+SFCDIF_URB 头段+kanda_kawai_svf+SHADOW_TREE）；code_00 README 总表更新 17✅、标注 **29/29 全部交付**。骨架 skel_code_17.md
+- **验收**：全量 **480 块 ALL PASS**（33 个 md）、指涉 44 文件缺失 0、code_17/00 引号 0 违例
+- **重大发现：本地副本的 module_sf_urban.F 含 urban-nbs 扩展**——TREEOPTION 树冠方案（SHADOW_TREE/STOMATAL/LELEAF/ROOT_UPTAKE/VF_TREE_ANALYTICAL 六件）、GROPTION 绿屋顶（直接调本文件内的 Noah 副本 DIREVAP/TRANSP/SMFLX——方案杂交案例）、vegetated ground、人为潜热 alhoption；且有 **2026-01 活注释**（Chenghao Wang / Yuqi，含「POTENTIAL ERROR」「to be fixed」）——疑为实验分支，与官方 tarball 差异未逐行对照；code_17 篇内已加版本警示。**教材 ch17 若引用 SLUCM 细节需按本地副本口径核对**
+- **其余新事实**：Macdonald 1998 式 23/26 与 λ_f 风向分档；SVF 的 NUDAPT 99 段数值积分；SLUCM 全程 cgs/SI 双制（×100 与 σ/60 换算点）；SFCDIF_URB=SFCDIF_off 城市版且 **PSLHS「bug fixed in 4.7.1」是两版唯一函数级差异**；CH_SCHEME=1 的 mos 内层交换；TC/QC 峡谷空气=各表面交换系数加权
+- **教材不回填**：延伸阅读由 code_00 README §二章序映射表承载（用户裁决，不再逐章改动已复核章节）
+- **文库工程状态**：29 篇目/33 个文件全部交付；六批走完；acceptance 480 块逐位一致。余：教材复核清单 13 项 + 五组集群实验裁决（均教材侧，待用户）
+
+## 印刷管线任务启动（2026-10-12，用户批准方案并修正四点）→ 已 new_context 交班执行
+
+- **任务**：两套 MD → A4 印刷 PDF。书一《WRF 源码导论》= doc\ch01–ch21 + app_a–d（排除提问清单/方案/index）；书二《WRF 源码精读》= doc\code\code_00_README.md + 32 篇按依赖序。管线 pandoc→xelatex（ctexbook），脚本与中间件在 workspace\print\
+- **用户修正**：①pandoc 已在 WRFlearn（执行期定位，找不到再 mamba 装）；②mermaid 图全部已生成 PNG（doc\figs\mermaid\ 55 张，含 code_*_01.png），**禁止再生成任何图**；③**印刷装订正规流程 = openright 章起右页**；④正式封面：作者 Jim Zhao、单位 兰州大学大气科学学院、日期 2026-10、无 logo
+- **工作流**：先小批量样本（建议教材 ch16 + 文库 code_12a、code_11）出样张 PDF 交用户目检 → 批准后全量 → QA（log 扫 Missing character/溢出）→ 交付 doc\WRF源码导论_印刷版.pdf 与 doc\WRF源码精读_印刷版.pdf
+- **样式规格**：--highlight-style=tango + tcolorbox 重定义 Shaded（浅灰底灰细框可跨页）+ Consolas/SimSun；H1 已自带「第 N 章」文字 → 不开 --number-sections；内部 .md 链接转纯文本、外链保留；代码 L 行号前缀原样保留
+- 环境已探明：xelatex TL2026（d:/texlive/2026）、ctex/tcolorbox ✓、draw.io CLI ✓、pandoc 不在 PATH

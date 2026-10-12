@@ -629,7 +629,13 @@ $$
 >
 > **PPT 原图（5-4）**：太阳常数与大气外界太阳光谱。
 >
-> ![大气外界太阳光谱及太阳常数（课程 PPT）](figs/ppt/ch12_ppt_solar_constant.png)
+> 太阳常数：太阳积分辐射通量密度，
+> $$ \bar{S}_0 = \int_0^\infty \bar{S}_{\lambda,0} d\lambda $$
+> 
+> 由于受仪器精度的限制、观测点大气条件的限制，太阳常数及太阳分光辐照度的测量仍不能达到> 1%的精度。当前测量结果为1395.6-1339.1 $W/m^2$。
+> 
+> WMO的推荐值为，
+> $$ \bar{S}_0 = 1367 \pm 7 \ W/m^2 $$
 
 ---
 
@@ -926,18 +932,9 @@ $$
 
 辐射传输计算量很大（尤其 RRTMG），不可能每个时间步都算一遍——模式用 namelist 参数 **`radt`（单位：分钟）** 控制辐射的调用间隔。`radiation_driver` 中的进入条件是四条“或”逻辑（源码注释原文即如此组织）：
 
-```mermaid
-flowchart TD
-    A[每个时间步进入 radiation_driver] --> B{itimestep == 1 ?}
-    B -- 是 --> R[执行辐射方案 run_param=True]
-    B -- 否 --> C{RADT==0 或 STEPRA==1 ?}
-    C -- 是 --> R
-    C -- 否 --> D{非自适应步长 且 MOD itimestep STEPRA == 1+ra_call_offset ?}
-    D -- 是 --> R
-    D -- 否 --> E{自适应步长 且 curr_secs >= radtacttime ?}
-    E -- 是 --> R2[执行并推进 radtacttime=curr_secs+radt*60]
-    E -- 否 --> S[跳过：沿用上次辐射结果]
-```
+![ch12_radiation_family_01](figs/mermaid/ch12_radiation_family_01.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch12_radiation_family_01.mmd -->
 
 - 第 1 条：`itimestep=1`（起报第一步必算，保证有初值）；
 - 第 2 条：`RADT=0`（或等价地把 `STEPRA` 置 1）表示“每个时间步都算”——最贵；

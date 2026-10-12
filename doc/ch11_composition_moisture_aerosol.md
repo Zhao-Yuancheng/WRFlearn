@@ -113,17 +113,15 @@
 - **可变成分**：平均寿命几年到几十年，如 CO₂、CH₄、N₂O、CFCs；
 - **快变成分**：平均寿命 <1 a，如 O₃、OH 和碳、硫、氮的化合物。
 
-```mermaid
-flowchart LR
-  A["干洁大气成分"] --> B["浓度法"]
-  A --> C["平均停留时间法"]
-  B --> B1["主要成分 >300 ppmv<br/>N₂ O₂ Ar CO₂"]
-  B --> B2["微量成分 1–20 ppmv<br/>CH₄"]
-  B --> B3["痕量成分 <1 ppmv<br/>O₃ H₂ NOx SO₂…"]
-  C --> C1["准定常 >1000 a<br/>N₂ O₂ Ar He Ne Kr Xe"]
-  C --> C2["可变 几年–几十年<br/>CO₂ CH₄ N₂O CFCs"]
-  C --> C3["快变 <1 a<br/>O₃ OH 碳/硫/氮化合物"]
-```
+**干洁大气成分：两种分类体系对照**（详见 ch11 §11.1，书 2.2）：
+
+| 浓度法（ppmv） | 代表成分 | 停留时间法 | 代表成分 |
+|---|---|---|---|
+| 主要成分 >300 | N₂ · O₂ · Ar · CO₂ | 准定常 >1000 a | N₂ · O₂ · Ar · He · Ne · Kr · Xe |
+| 微量成分 1–20 | CH₄ | 可变 几年–几十年 | CO₂ · CH₄ · N₂O · CFCs |
+| 痕量成分 <1 | O₃ · H₂ · NOx · SO₂ … | 快变 <1 a | O₃ · OH · 碳/硫/氮化合物 |
+
+
 
 **为什么记两套分类**：浓度法回答“有多少”，寿命法回答“变得有多快”——后者才是全球变化问题（温室气体、臭氧洞）的技术入口；也正因为 CO₂、CH₄、CFCs 的寿命是“几年到几十年”，人类活动才有加速改变它们的空间。
 
@@ -303,17 +301,9 @@ $$U_w = \frac{r}{r_s}\cdot\frac{\varepsilon+r_s}{\varepsilon+r} \approx \frac{r}
 
 **参量互换网络**（已知 $(T,p,q)$ 或 $(T,p,e)$ 即可求其余全部）：
 
-```mermaid
-flowchart LR
-  r["混合比 r"] <-->|"q=r/(1+r)◀▶r=q/(1-q)"| q["比湿 q"]
-  r <-->|"e=(r/(ε+r))p ◀▶ r=εe/(p−e)"| e["水汽压 e"]
-  q -->|"ρv=εe/(RdT)"| rho["水汽密度 ρv"]
-  e -->|"es(Td)=e（Bolton 反解）"| Td["露点 Td"]
-  e -->|"U=e/es(T)"| U["相对湿度 U"]
-  q -->|"U≈q/qs"| U
-  T["温度 T"] -->|"es(T)：Tetens/Bolton…"| U
-  p["气压 p"] --> e
-```
+![ch11_composition_moisture_aerosol_02](figs/mermaid/ch11_composition_moisture_aerosol_02.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch11_composition_moisture_aerosol_02.mmd -->
 
 **一个手算范例**（本实验实测，见 11.6）：$T=25℃$、$p=1000$ hPa、$q=12$ g/kg（兰州盛夏典型值）：
 

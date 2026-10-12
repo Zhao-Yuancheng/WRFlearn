@@ -7,17 +7,21 @@
 
 ## 2.0 本章地图
 
-```mermaid
-flowchart LR
-    A["4.0 (2018-06)<br/>混合坐标默认化"] --> B["4.1 (2019-04)<br/>Goddard 4ICE/WSM7/WDM7"]
-    B --> C["4.2 (2020-04)<br/>SMS-3DTKE / FARMS"]
-    C --> D["4.3 (2021-05)<br/>BEP+BEM 接入 YSU / EEPS"]
-    D --> E["4.4 (2022-04)<br/>NoahMP 子模块化 / cldovrlp=5"]
-    E --> F["4.5 (2023-04)<br/>Thompson mp38 / k-e-θ² / NTiedtke 尺度自适应"]
-    F --> G["4.6 (2024-05)<br/>MMM 共享物理库 / CMake / 风电场三新"]
-    G --> H["4.7 (2025-04)<br/>MYNN-EDMF 子模块化 / UDM / RCON"]
-    H --> I["4.8 (2026-06)<br/>TEMPO / GFL / MYNN-SFC / NoahMP v5.1.2 / 城市树木"]
-```
+**WRF 4.x 版本演进时间线**（完整条目见 §2.1 正式表格）：
+
+| 版本 | 发布日期 | 核心亮点 |
+|---|---|---|
+| 4.0 | 2018-06 | 混合 σ-p 坐标默认化 |
+| 4.1 | 2019-04 | Goddard 4ICE / WSM7 / WDM7 |
+| 4.2 | 2020-04 | SMS-3DTKE / FARMS |
+| 4.3 | 2021-05 | BEP+BEM 接入 YSU / EEPS |
+| 4.4 | 2022-04 | NoahMP 子模块化 / `cldovrlp=5` |
+| 4.5 | 2023-04 | Thompson mp38 / k-e-θ² / NTiedtke 尺度自适应 |
+| 4.6 | 2024-05 | MMM 共享物理库 / CMake / 风电场三新 |
+| 4.7 | 2025-04 | MYNN-EDMF 子模块化 / UDM / RCON |
+| **4.8** | **2026-06** | TEMPO / GFL / MYNN-SFC / NoahMP v5.1.2 / 城市树木 |
+
+
 
 - **2.1** 时间线总览表（全部有官方日期）；
 - **2.2** 各代里程碑选讲（只讲“对本书读者有用”的，且每条标注与本书哪一章对接）；

@@ -49,26 +49,9 @@
 
 ### 6.1.1 数据流全景
 
-```mermaid
-flowchart LR
-    subgraph 输入
-        G1["GRIB 再分析资料<br/>（ERA5 月文件，本个例 2 个）"]
-        G2["静态地理数据<br/>（WPS_GEOG 目录，30s/2m/5m 分级）"]
-    end
-    subgraph WPS
-        U["ungrib.exe<br/>翻译官：GRIB → FILE:（WPS 中间格式）"]
-        GR["geogrid.exe<br/>制图员：静态场 → geo_em.d0N.nc"]
-        M["metgrid.exe<br/>拼装师：FILE: + geo_em → met_em.d0N.*.nc"]
-    end
-    subgraph WRF
-        R["real.exe<br/>（第 7 章）→ wrfinput / wrfbdy"]
-    end
-    G1 --> U
-    G2 --> GR
-    U -->|"FILE:2025-07-12_00 等 21 个"| M
-    GR -->|"geo_em.d01.nc / d02.nc"| M
-    M -->|"met_em.d01.*.nc / d02.*.nc（21 时刻 × 2 域 = 42 个）"| R
-```
+![ch06_wps_pipeline_01](figs/mermaid/ch06_wps_pipeline_01.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch06_wps_pipeline_01.mmd -->
 
 三个程序各管一段，**通过文件解耦**：
 

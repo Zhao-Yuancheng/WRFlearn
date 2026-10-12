@@ -312,15 +312,15 @@ print("Td max (C):", round(float(td.max().to("degC").m), 2))   # 本例 22.1
 
 ### 8.5.1 语义与数据流（源码级）
 
-```mermaid
-flowchart LR
-    A["运行中：RESTART_ALARM 到点"] --> B["med_last_solve_io / med_after_solve_io 检查铃响"]
-    B -->|"grid%id==1 才发起"| C["med_restart_out：写本域 rst 并递归写所有子域"]
-    C --> D["wrfrst_d01_… / wrfrst_d02_…"]
-    D --> E["续跑：restart=.true. + 起点时间对齐"]
-    E --> F["input_wrf 读 rst：状态 + 闹钟时刻表"]
-    F --> G["从断点继续积分"]
-```
+**RESTART 续跑流程**（详见 ch08 §8.3）：
+
+1. `RESTART_ALARM` 到达触发时刻 → `med_last_solve_io / med_after_solve_io` 检查铃响
+2. `grid%id==1`（根域）发起 `med_restart_out`：写本域 rst 并递归所有子域
+3. 产出 `wrfrst_d01_… / wrfrst_d02_…`
+4. 续跑：`restart=.true.` + 起点时间对齐 → `input_wrf` 读 rst（状态 + 闹钟时刻表）
+5. 从断点继续积分
+
+
 
 三条源码事实（`share/set_timekeeping.F`、`share/mediation_integrate.F`）：
 

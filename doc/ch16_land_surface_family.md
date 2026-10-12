@@ -24,9 +24,9 @@
 
 > 目录核验：书目录（`book\page_0008.jpg`）实测——4.2 起于印刷页 55、4.3 起于 56、习题在 59、参考文献 60；答案页在印刷页 545（`book\page_0559.jpg`）。直读页实测 4.2 正文含 (4.2.1)–(4.2.3) 与表 4.1；4.3 引言与 4.3.1、4.3.2 齐全。
 
-### 16.0.2 考点清单（自拟版，待 PPT 校准）
+### 16.0.2 考点清单（PPT 4《大气分层》§4.3 内容页归纳 + 模式侧自拟）
 
-> 第 4 章课件未到，以下按书 4.2/4.3 与课程大纲自拟；PPT 到货后补“考点透视”并校准。第 4 章书内习题 3（温湿密度 + 等温层厚度 + 水汽柱）与习题 5（对流层质量占比）就是“柱质量”公式的三道应用题，本章 16.9 节给出全解与答案页对照。
+> 第 4 章课件《大气分层》在案（12 讲之列），但该讲没有显式的“重点/掌握要点/思考题”页——以下按其内容页与书 4.2/4.3 归纳：§4.2 标高/柱质量的考点主承载在 ch10 §10.0.2，§4.3 的海水密度为空气 800 倍、总质量 267 倍、热容量 3120 倍、海洋成层/环流/SST 均为 PPT 内容页原句量值；模式侧条目自拟。第 4 章书内习题 3（温湿密度 + 等温层厚度 + 水汽柱）与习题 5（对流层质量占比）就是“柱质量”公式的三道应用题，本章 16.9 节给出全解与答案页对照。
 
 **名词解释（拟）**：单位截面积气柱质量；标高（薄壳）；海洋热惯性；季节变化层（上混合层）；主（温）跃层；下均匀层；周日温度跃层；海流（风海流、暖洋流、冷洋流）；地表能量平衡；净辐射；感热通量；潜热通量；土壤热通量；土壤热传导率（TDFCND）；体积热容（HCPCT）；阻尼深度；相位滞后；蒸发效率 $\beta$；蒸发比 BETA=ETA/ETP；皮肤温度；交换系数 CH；（模式侧）陆面方案；面层方案；静态场；TMN；damping depth。
 
@@ -246,13 +246,13 @@ $$\beta=\frac{E}{E_{\rm pot}},\qquad \beta=\mathrm{clip}\!\left(\frac{\theta-\th
 
 `surface_driver` 在物理序列里的位置（承接第 12/14 章）：
 
-```mermaid
-flowchart LR
-    A["radiation_driver<br/>(第 12 章)"] --> B["surface_driver<br/>(本章)"]
-    B --> C["pbl_driver<br/>(第 14 章)"]
-    C --> D["cumulus_driver<br/>(第 15 章)"]
-    D -.-> E["microphysics_driver<br/>(solve_em 后段)"]
-```
+**物理驱动链与章节对照**：
+
+`radiation_driver（第 12 章） → surface_driver（本章） → pbl_driver（第 14 章） → cumulus_driver（第 15 章）`
+
+`microphysics_driver` 在 `solve_em` RK 循环后单独执行。
+
+
 
 顺序的物理含义：**辐射先“定天”，地面再“接账”（按辐射收入加上边界条件算出 $R_n$、$H$、$LE$、$G$），然后 PBL 用这套地表通量做湍流垂直混合**。四个实测要点：
 
@@ -353,13 +353,9 @@ Noah 每个格点“是什么地面”完全是静态输入决定的。链路三
 
 Noah 在 WRF 里的“躯体”分三层，职责分明：
 
-```mermaid
-flowchart TB
-  DRV["module_sf_noahdrv.F<br/>(WRF 驱动层)<br/>lsm / LSMINIT / SOIL_VEG_GEN_PARM"] --> PHY["module_sf_noahlsm.F<br/>(物理层)<br/>SFLX 主控 + 30 个子程序"]
-  TBL["SOILPARM / VEGPARM / GENPARM.TBL<br/>(参数表)"] --> DRV
-  DRV --> WRF["WRF 状态量<br/>TSK / HFX / QFX / GRDFLX / TSLB / SMOIS / SH2O / SNOW"]
-  PHY --> PHYS["物理过程<br/>PENMAN / NOPAC / SMFLX / TDFCND / HRT / SHFLX"]
-```
+![ch16_land_surface_family_02](figs/mermaid/ch16_land_surface_family_02.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch16_land_surface_family_02.mmd -->
 
 - `module_sf_noahdrv.F`（驱动层）：把 WRF 场翻译成 SFLX 的实参——计算 **Q2SAT 与 DQSDT2**（饱和比湿及其对温度的导数；用 Bolton 1980 形式：$e_s=611.2\exp[17.67(T-273.15)/(T-29.65)]$，$\mathrm{d}q_{\rm sat}/\mathrm{d}T=q_{\rm sat}\cdot4302.65/(T-29.65)^2$，其中 $4302.65=A_2(A_3-A_4)$、$A_2=17.67$、$A_3=273.15$、$A_4=29.65$，全部实测；雪面时改用冰面关系 $6174/T^2$，$6174=L_s/R_v$ 的量级）、组装植被/土壤参数、处理雪与冰盖分支；`LSMINIT` 在初始化阶段调用；`SOIL_VEG_GEN_PARM` 负责读三张表。
 - `module_sf_noahlsm.F`（物理层）：`SFLX` 主控 + `PENMAN`/`NOPAC`/`SNOPAC`/`TDFCND`/`HRT`/`HSTEP`/`SHFLX`/`SMFLX`/`EVAPO`/`DEVAP`/`CANRES`/`REDPRM`/`CSNOW`/`TBND` 等约 30 个子程序——**本章精读的全部公式都在这里**。
@@ -380,16 +376,21 @@ flowchart TB
 
 时间轴上的“水分先行、能量后解”：
 
-```mermaid
-flowchart TB
-  RD["REDPRM 参数"] --> PEN["PENMAN：ETP + RR + EPSCA"]
-  PEN --> EV["EVAPO：EDIR/EC/ET"]
-  EV --> SM["SMFLX：SMC/SH2O 三对角 + 径流"]
-  SM --> BT["BETA = ETA/ETP（水侧诊断）"]
-  BT --> TD["TDFCND：lambda(SMC,SH2O,QZ)"]
-  TD --> YZ["YY / ZZ1：把 BETA 与 lambda 装进线性化方程"]
-  YZ --> SH["SHFLX：HRT+HSTEP 隐式土层步<br/>T1=(YY+(ZZ1-1)*STC1)/ZZ1；SSOIL"]
+**Noah Land Surface 土壤蒸发（Penman-Monteith 路线）**：
+
+```text
+REDPRM 参数
+  → PENMAN（ETP + RR + EPSCA）
+    → EVAPO（EDIR/EC/ET）
+      → SMFLX（SMC/SH2O 三对角 + 径流）
+        → BETA = ETA/ETP（水侧诊断）
+          → TDFCND（lambda(SMC,SH2O,QZ)）
+            → YY / ZZ1（把 BETA 与 lambda 装进线性化方程）
+              → SHFLX（HRT+HSTEP 隐式土层步）
+                  T1 = (YY + (ZZ1-1)·STC1) / ZZ1；SSOIL
 ```
+
+
 
 **这张图的顺序就是 Noah 的“性格”**：水（ETA）先由土壤湿度定案，能量（T1、SSOIL、SHEAT）后解——而不是两者联立迭代。对比见 16.7。
 

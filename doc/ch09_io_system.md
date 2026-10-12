@@ -49,14 +49,17 @@
 - `module_io.F` 内部用 `SELECT CASE (use_package(io_form))` 把请求**分派**给具体 IO 包，包内例程一律 `ext_` 前缀（如 `ext_ncd_write_field` = netCDF 包的实现，`ext_pnc_…` = PnetCDF 包）；
 - 若启用 quilt，`module_io.F` 还会调 `wrf_quilt_` 前缀的一套接口与 I/O 服务器通信（§9.4）。
 
-```mermaid
-flowchart LR
-    M["mediation / output_wrf / input_wrf"] --> B["frame/module_io.F：wrf_* 包无关接口"]
-    B -->|"use_package = MOD(io_form,100)"| P1["external/io_netcdf：ext_ncd_*"]
-    B --> P2["external/io_pnetcdf：ext_pnc_*"]
-    B --> P3["external/io_int、io_phdf5、io_grib1/2、io_esmf、io_pio、io_netcdfpar、io_adios2 …"]
-    B -.->|"启用 quilt 时"| Q["module_wrf_quilt：wrf_quilt_* 与 I/O 服务器"]
-```
+**`wrf_*` 无关接口 → 多后端实现的路由**：
+
+| 接口层（`frame/module_io.F`） | 路由 | 实现包 |
+|---|---|---|
+| `mediation` / `output_wrf` / `input_wrf` | `io_form % 100` | — |
+| | 1 | `external/io_netcdf`（`ext_ncd_*`）|
+| | 2 | `external/io_pnetcdf`（`ext_pnc_*`）|
+| | 其他 | `io_int` / `io_phdf5` / `io_grib1/2` / `io_esmf` / `io_pio` / `io_netcdfpar` / `io_adios2` … |
+| | 启用 quilt | `module_wrf_quilt`（独立 I/O 服务器）|
+
+
 
 `io_form` 出现在所有带 IO 的 namelist 项里：`io_form_history / restart / input / boundary`，以及每个辅助流各自的 `io_form_auxhistN / io_form_auxinputN`——**逐流独立选择**，这是流系统（第 4 章）的自然延伸。
 

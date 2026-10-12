@@ -65,16 +65,20 @@
 
 ### 4.1.2 Registry 的哲学：声明式中枢
 
-```mermaid
-flowchart LR
-    R["Registry 中的一行<br/>state real T2 ij misc 1 - i01rh01{22}{23}du ... "]
-    R --> A["① 域类型字段<br/>inc/state_struct.inc"]
-    R --> B["② 内存分配/释放<br/>inc/allocs_N.F、deallocs_N.F"]
-    R --> C["③ 运行期状态表 + IO 位掩码<br/>allocs 代码里的 tail_statevars"]
-    R --> D["④ 嵌套插值/反馈<br/>inc/nest_*.inc + IO 字母 f/d/u/s"]
-    R --> E["⑤ 通信代码<br/>inc/HALO_*.inc、PERIOD_BDY_*.inc"]
-    R --> F["⑥ （rconfig 专属）namelist 读写链<br/>inc/namelist_*.inc、nl_config.inc"]
-```
+**Registry 中一行条目触发的六类代码生成**（详见 ch04 §4.2）：
+
+| 编号 | 生成物 | 对应路径 |
+|---|---|---|
+| ① 域类型字段 | `inc/state_struct.inc` | `inc/` |
+| ② 内存分配/释放 | `inc/allocs_N.F`、`deallocs_N.F` | `inc/` |
+| ③ 运行期状态表 + IO 位掩码 | `tail_statevars`（嵌入 allocs 代码） | `frame/` |
+| ④ 嵌套插值/反馈 | `inc/nest_*.inc` + IO 字母 `f/d/u/s` | `inc/` |
+| ⑤ 通信代码 | `inc/HALO_*.inc`、`PERIOD_BDY_*.inc` | `inc/` |
+| ⑥ rconfig 专属 namelist 读写 | `inc/namelist_*.inc`、`nl_config.inc` | `inc/` |
+
+**原始条目示例**：`state real T2 ij misc 1 - i01rh01{22}{23}du ...`
+
+
 
 作为一个工程学事实：**WRF 是 Fortran 写的，但 WRF 的可维护性靠一个小型 C 编译器实现**。这个编译器就是 `tools/` 下的 `registry` 程序——它由约二十个 C 源文件（`registry.c` + `reg_parse.c` + `gen_*.c` 家族）编译而成，专门“编译” Registry 这门小语言。你的工作流从此变成：
 
@@ -329,20 +333,9 @@ rconfig   character  input_inname  namelist,time_control  1  "wrfinput_d<domain>
 
 #### 生成链：一行 rconfig 变成七个生成物
 
-```mermaid
-flowchart TD
-    R["rconfig 记录<br/>（Registry）"] --> S["inc/namelist_statements.inc<br/>NAMELIST /time_control/ run_days,..."]
-    R --> D1["inc/namelist_defines.inc<br/>model_config_rec_type 成员<br/>（维度版 namelist_defines2.inc）"]
-    R --> D2["inc/namelist_defaults.inc<br/>默认值赋值"]
-    S --> B["frame/module_configure.F<br/>（手写宿主，include 以上文件）"]
-    D1 --> B
-    D2 --> B
-    B --> CR["inc/config_reads.inc<br/>逐组 READ(namelist) 循环"]
-    R --> NL["inc/nl_config.inc<br/>nl_get_*/nl_set_* 访问器（2330 对）"]
-    NL --> CPP["cpp -DNNN=k 切成 8+8 个编译单元<br/>frame/nl_get_k_routines.F / nl_set_k_routines.F"]
-    R --> CA["inc/config_assigns.inc<br/>model_to_grid_config_rec 复制代码"]
-    CA --> B
-```
+![ch04_registry_mechanism_02](figs/mermaid/ch04_registry_mechanism_02.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch04_registry_mechanism_02.mmd -->
 
 关键机制注解（均已在 `tools/gen_config.c` 中核验）：
 
@@ -482,15 +475,25 @@ real      ,DIMENSION(...)  :: ww1
 
 ### 4.3.1 谁在什么时候运行 registry
 
-```mermaid
-flowchart LR
-    A["./configure"] -->|生成| B["configure.wrf<br/>REGISTRY = Registry"]
-    C["./compile"] -->|合成 Registry/Registry<br/>（含过期检查）| D["Registry/Registry"]
-    B --> E["make → frame/Makefile 规则"]
-    D --> E
-    E -->|运行| F["tools/registry -D... -DNEW_BDYS Registry/Registry"]
-    F --> G["inc/ 与 frame/ 生成物"]
+**Configure/Compile → Registry → 生成物的构建链**：
+
+```text
+./configure  ──→  configure.wrf（REGISTRY = Registry）
+                   │
+                   ▼
+./compile  ──→  Registry/Registry（含过期检查）
+                   │
+                   ▼
+          make → frame/Makefile 规则
+                   │
+                   ▼
+          tools/registry -D... -DNEW_BDYS  Registry/Registry
+                   │
+                   ▼
+          inc/ 与 frame/ 代码生成物
 ```
+
+
 
 **第一步：configure。** 生成的 `configure.wrf` 里固定一行 `REGISTRY = Registry`（集群实测），同时把本机参数（`MAX_HISTORY`、`IWORDSIZE`、`COREDEFS` 等）写进编译变量。
 
@@ -692,16 +695,32 @@ gen_dummy_args()       /* only generate dummy args for the 4d arrays */
 
 以 `mp_physics` 为例，完整链条（每一跳均可在源码/生成物中核验）：
 
-```mermaid
-flowchart TD
-    N1["namelist.input: &physics mp_physics = 6"] --> N2["inc/namelist_statements.inc<br/>NAMELIST /physics/ mp_physics"]
-    N2 --> N3["frame/module_configure.F<br/>config_reads.inc 的 READ 循环"]
-    N3 --> N4["model_config_rec%mp_physics(1) = 6"]
-    N4 --> N5["nl_get_mp_physics(1, val)<br/>（inc/nl_config.inc 生成）"]
-    N4 --> N6["model_to_grid_config_rec<br/>（config_assigns.inc）→ config_flags%mp_physics"]
-    N5 --> N7["in_use_for_config 判定<br/>（package 常量 wsm6scheme=6 ↔ 变量开关）"]
-    N6 --> N8["物理驱动 module_physics_driver<br/>按 config_flags%mp_physics 分发"]
+**`mp_physics` 从 namelist 到物理驱动的完整链**：
+
+```text
+namelist.input:
+  &physics mp_physics = 6
+      │
+      ▼
+inc/namelist_statements.inc:
+  NAMELIST /physics/ mp_physics
+      │
+      ▼
+frame/module_configure.F:
+  config_reads.inc 的 READ 循环
+      │
+      ▼
+  model_config_rec%mp_physics(1) = 6
+      │
+      ├──→ nl_get_mp_physics(1, val)          （inc/nl_config.inc 生成）
+      │      └──→ in_use_for_config 判定       （wsm6scheme=6 ↔ 变量开关）
+      │
+      └──→ model_to_grid_config_rec           （config_assigns.inc）
+             └──→ config_flags%mp_physics
+                   └──→ module_physics_driver  按 config_flags%mp_physics 分发
 ```
+
+
 
 要点：`config_flags`（域级配置结构）才是运行期绝大多数子程序看到的“配置”；`nl_get_*` 是给不方便带 `config_flags` 的调用点准备的访问器。第 3 章 `solve_interface` 里的 `model_to_grid_config_rec` 正是第 6 跳。
 

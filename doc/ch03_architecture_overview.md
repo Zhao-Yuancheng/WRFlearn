@@ -47,19 +47,9 @@
 
 WRF 编译完成后，`main/` 目录下会生成四个核心可执行文件。先建立第一层印象——**它们不是四个平级的程序，而是“预处理 → 主模式 → 后续处理”的流水线成员**：
 
-```mermaid
-flowchart LR
-    subgraph WPS["WPS 4.7 家族（第 6 章）"]
-        GEO["geogrid.exe<br/>静态地理场"] --> MET["metgrid.exe<br/>气象场水平插值"]
-        UNG["ungrib.exe<br/>GRIB 解码"] --> MET
-    end
-    MET -->|"met_em.d0N.*"| REAL["real.exe<br/>垂直插值 + 初值/边界"]
-    REAL -->|"wrfinput_d0N<br/>wrfbdy_d01"| WRF["wrf.exe<br/>主模式积分"]
-    WRF -->|"wrfout_d0N_*"| ND["ndown.exe<br/>网格降级"]
-    WRF -.->|"理想算例"| IDEAL["ideal.exe<br/>理想初始场"]
-    IDEAL -.-> WRF
-    ND -.->|"wrfinput（更细网格）"| WRF
-```
+![ch03_architecture_overview_01](figs/mermaid/ch03_architecture_overview_01.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch03_architecture_overview_01.mmd -->
 
 | 可执行文件 | 入口源文件 | 职责（一句话） | 典型输入 → 输出 |
 |---|---|---|---|
@@ -101,20 +91,9 @@ program_name = "WRF " // TRIM(release_version) // " MODEL"
 
 以下调用链为本章逐文件核验的实录（括号内为定义所在的源文件）：
 
-```mermaid
-flowchart TD
-    A["PROGRAM wrf<br/>main/wrf.F"] --> B["wrf_init<br/>main/module_wrf_top.F"]
-    B --> C["wrf_dfi（可选：数字滤波初始化）"]
-    C --> D["wrf_run<br/>main/module_wrf_top.F"]
-    D --> E["integrate<br/>frame/module_integrate.F"]
-    E --> F["med_setup_step<br/>share/mediation_integrate.F"]
-    E --> G["solve_interface<br/>share/solve_interface.F"]
-    G --> H["solve_em<br/>dyn_em/solve_em.F"]
-    E --> I["med_calc_model_time / med_after_solve_io<br/>share/mediation_integrate.F"]
-    E --> J["med_nest_force → 递归 integrate（子域）→ med_nest_feedback"]
-    E --> K["med_endup_step / med_last_solve_io"]
-    D --> L["wrf_finalize"]
-```
+![ch03_architecture_overview_02](figs/mermaid/ch03_architecture_overview_02.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch03_architecture_overview_02.mmd -->
 
 把它读三遍，本章后面所有内容都是给这张图加注释。
 
@@ -285,25 +264,9 @@ CALL solve_em ( grid , config_flags &
 
 把上面的目录按“层次”重新摆放，就得到 WRF 最核心的架构视图。**这张图决定了你以后“想改功能该动哪里”**：
 
-```mermaid
-flowchart TD
-    subgraph L1["① 驱动层 main/"]
-        P1["PROGRAM wrf / real / ideal …<br/>决定'程序做什么'"]
-    end
-    subgraph L2["② 框架层 frame/"]
-        P2["module_integrate.F：时间循环（递归）<br/>module_domain.F：域数据结构<br/>module_io.F / module_dm.F：IO 与并行接口"]
-    end
-    subgraph L3["③ 中介层 share/"]
-        P3["mediation_*.F：IO与调度的实现<br/>solve_interface.F：内核隔离带<br/>module_model_constants.F：物理常数"]
-    end
-    subgraph L4["④ 专业层 dyn_em/ + phys/"]
-        P4["solve_em.F：动力内核<br/>module_mp/bl/ra/sf/cu_*.F：物理参数化"]
-    end
-    L1 --> L2 --> L3 --> L4
-    REG["Registry/<br/>（横向：为全部层生成代码）"] -.-> L2
-    REG -.-> L3
-    REG -.-> L4
-```
+![ch03_architecture_overview_03](figs/mermaid/ch03_architecture_overview_03.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch03_architecture_overview_03.mmd -->
 
 **分层设计的关键证据**（也是“为什么这么分”的答案）：同一组 `med_*` 函数，**接口声明在 `frame/module_integrate.F`，实现在 `share/mediation_integrate.F`**。框架层说“我需要一个'步前准备'的钩子”，中介层说“我来实现”。于是：
 

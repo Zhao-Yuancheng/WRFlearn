@@ -300,14 +300,13 @@ $$M(z)=\rho\,w\,\sigma,\qquad \frac{\partial M}{\partial z}=(\varepsilon-\delta)
 
 积云参数化的调用点在 `dyn_em/module_first_rk_step_part1.F`（主 RK 步的物理段）。实测的**物理先后顺序**：
 
-```mermaid
-flowchart LR
-    A["radiation_driver"] --> B["surface_driver"]
-    B --> C["pbl_driver"]
-    C --> D["cumulus_driver"]
-    D --> E["shallowcu_driver"]
-    E -.-> F["microphysics_driver<br/>(solve_em 后段)"]
-```
+**非时间分裂物理驱动的调用顺序**（`rk_step==1` 时执行一次；详见 ch13–ch16 + ch21）：
+
+`radiation_driver → surface_driver → pbl_driver → cumulus_driver → shallowcu_driver`
+
+微物理 `microphysics_driver` 在 RK 循环全部结束后执行（独立链）。
+
+
 
 顺序的物理含义：**辐射定天、地面供能、PBL 先做湍流垂直混合，然后积云方案拿“混合后的层结”判对流，最后微物理收网格尺度相变与降水**。这就是第 14 章 14.5.1 那张调用链图的“下游续集”。
 
@@ -448,18 +447,9 @@ WRF 4.8 的 New Tiedtke 由**两个文件**组成（与第 13 章 WSM6 的“双
 | `cudlfsn` | 下沉气流起点（LFS） | `cudtdqn` / `cududvn` | T/q 与 u/v 倾向更新 |
 | `cuddrafn` | 下沉气流（downdraft） | `foealfa` / `foeewm` | 液相分数 / 饱和水汽压 |
 
-```mermaid
-flowchart TB
-  RUN["cu_ntiedtke_run<br/>(尺度因子 + 单位换算)"] --> CM["cumastrn 主控"]
-  CM --> CI["cuinin 初值化"]
-  CM --> CT["cutypen 云型与触发"]
-  CM --> CA["cuascn 上升气流<br/>(内含 cubasmcn / cuentrn / cuadjtqn)"]
-  CM --> DL["cudlfsn/cuddrafn<br/>下沉气流"]
-  CM --> CL["闭合：深 CAPE / 浅 MSE / 中层 ω<br/>(回改云底质量通量)"]
-  CM --> CF["cuflxn 通量整合"]
-  CF --> TQ["cudtdqn → T/q 倾向"]
-  CF --> UV["cududvn → u/v 倾向<br/>(+ 动能耗散加热)"]
-```
+![ch15_cumulus_family_02](figs/mermaid/ch15_cumulus_family_02.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch15_cumulus_family_02.mmd -->
 
 ### 15.6.2 数据流：pre_run / run / post_run
 

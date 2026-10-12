@@ -178,17 +178,9 @@ $$F_X = a_X\cdot X + b_X \tag{17.2}$$
 
 BEM 在 BEP 的街谷之上再叠一层**建筑内部**：楼板分层（`nflo`，`num_urban_nf=10`）、建筑下地面（`ngb`，`num_urban_ngb=10`）、墙体多层（`nwal`，`num_urban_nwr=10`）、窗户（`thickwin`）。子程序职责图：
 
-```mermaid
-flowchart TB
-  BEM["BEM 主控<br/>（室内能量/湿度核算）"] --> W["wall / wall_coeff<br/>1D 墙体热传导（三对角）"]
-  BEM --> R1["algebra_short / algebra_long<br/>窗-墙-室内短/长波代数"]
-  BEM --> IN["hsinsflux / int_rsrad / int_rlrad<br/>内表面辐射与通量"]
-  BEM --> PH["phirat / phiequ / fluxeqocc<br/>占用率-设备-人员日程"]
-  BEM --> V["fluxvent / fluxcond<br/>通风与传导"]
-  BEM --> T["regtemp / reghum<br/>室内温度/湿度回归"]
-  T --> AC["air_cond<br/>空调：hsneed/hlneed → consump/cop"]
-  BEM --> PV["hsfluxpv + effpv<br/>屋顶光伏发电"]
-```
+![ch17_urban_canopy_01](figs/mermaid/ch17_urban_canopy_01.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch17_urban_canopy_01.mmd -->
 
 - **空调与能耗**：`air_cond(hsneed, hlneed, dt, hsout, hlout, consump, cop)`——把“需要多少显/潜热”换成“耗多少电”（`consump`，`cop` 为能效比）——**这就是建筑能耗模式的计量出口**；
 - **室内温湿**：`regtemp`/`reghum` 以回归式推进室内温度/湿度（受空调 `temp_rat=0.001 K/s`、`hum_rat=1×10⁻⁶ (kg/kg)/s` 的调温/调湿速率约束）；
@@ -266,16 +258,9 @@ flowchart TB
 
 **判读**：`y2050_urb`/`y2050_ahe` 是**城市扩展情景数据集**（2050 年建成区 + 人为热），就是参考个例（`liuyl17/haidian2024`）`geog_data_res` 里用的那两个关键字——对 BEP/BEM 章与论文 2 都是“现成的城市形态/人为热输入链”。`slucm_distributed_drag=.true.` 时这三个 2D 形态场（零平面位移、粗糙度、λf）直接进面层——**只对 `sf_urban_physics=1`**（README 原文）。
 
-```mermaid
-flowchart LR
-  G1["geogrid: y20xx_urb / y20xx_ahe<br/>MH / ZD / Z0 / lambda_p / lambda_f / AHE"] --> R["real.exe -> wrfinput"]
-  G2["geogrid: FRC_URB2D / URB_PARAM<br/>NUDAPT44 / urbfrac / IMPERV / CANFRA"] --> R
-  R --> W["WRF 运行期"]
-  W --> N1["namelist 开关<br/>sf_urban_physics / distributed_ahe_opt / slucm_distributed_drag / use_wudapt_lcz"]
-  N1 --> U["SLUCM / BEP / BEM 逐格消费"]
-  U --> P["PBL (YSU / MYJ / BouLac)<br/>a_*_bep / b_*_bep 系数回路"]
-  U --> O["wrfout 诊断<br/>TSK / T2 / HFX / 城市变量族"]
-```
+![ch17_urban_canopy_02](figs/mermaid/ch17_urban_canopy_02.png)
+
+<!-- Mermaid 源码 → workspace/mermaid/ch17_urban_canopy_02.mmd -->
 
 ### 17.5.3 namelist 联动速查
 
