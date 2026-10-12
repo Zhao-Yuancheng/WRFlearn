@@ -583,3 +583,42 @@
 - **工作流**：先小批量样本（建议教材 ch16 + 文库 code_12a、code_11）出样张 PDF 交用户目检 → 批准后全量 → QA（log 扫 Missing character/溢出）→ 交付 doc\WRF源码导论_印刷版.pdf 与 doc\WRF源码精读_印刷版.pdf
 - **样式规格**：--highlight-style=tango + tcolorbox 重定义 Shaded（浅灰底灰细框可跨页）+ Consolas/SimSun；H1 已自带「第 N 章」文字 → 不开 --number-sections；内部 .md 链接转纯文本、外链保留；代码 L 行号前缀原样保留
 - 环境已探明：xelatex TL2026（d:/texlive/2026）、ctex/tcolorbox ✓、draw.io CLI ✓、pandoc 不在 PATH
+
+## 印刷管线（2026-10-12，pandoc→xelatex 样张完成待目检）
+- 工具链：pandoc 3.12.1（WRFlearn\Library\bin\pandoc.exe）+ XeTeX TeX Live 2026；mermaid PNG 已全（doc\figs\mermaid 55 张），不再生成任何图
+- 脚本全在 workspace\print\：preproc.py（fence 感知；删 details/HTML 注释；图路径绝对化；站内 md 链接降级为文字；裸文件名包 code span；数学环境 CJK/符号包 \text{}；正文 / 后插断点）、fix_tex.py（verbatim 长同字符串与 \texttt 内插 \allowbreak）、build.ps1 -Book book1|book2|sample1|sample2、header.tex（Times+Consolas+Segoe UI Symbol 回落、tcolorbox 灰框代码、Gin 85% 宽、fancyhdr、emergencystretch）、template_print.tex（自写精简模板：无 unicode-math——它与 \newunicodechar 冲突是缺字根因；无 parskip 保留首行缩进；\newcounter{none}；封面后目录罗马页码、正文阿拉伯页码）
+- 关键坑：①unicode-math 使 \newunicodechar 在正文模式强制进数学模式（Missing $ inserted）→ 自写模板去掉；②pandoc 3.12 模板是模块化 partial，-D 导出不含 unicode-math 行 → 只能自写模板；③--include-in-header 注入变量名是 header-includes；④pandoc 规则：公式结尾 $ 后紧跟数字会判非公式 → preproc 补 {}；⑤verbatim 连字符在 tex 中转义为 {-}，fix_tex 需两套匹配；⑥\allowbreak 后必须跟 {}，否则吞字母
+- 样张已交付：sample_教材_ch16.pdf（25页）、sample_文库_code12a_code11.pdf（56页），0 错误 0 缺字，Overfull ≤21pt
+- 待办：用户目检样张 → 批准后 build.ps1 -Book book1/book2 全量 → QA → 交付 doc\WRF源码导论_印刷版.pdf 与 doc\WRF源码精读_印刷版.pdf；封面=书名黑体+Jim Zhao+兰州大学大气科学学院+2026年10月，无 logo
+
+## 印刷管线 v2（2026-10-12，用户三点修改后样张更新）
+- ①页边距 inner/outer 均 1.8cm（build.ps1 geometry）②代码块 footnotesize + tcolorbox padding 3pt/2.5pt、skip 6pt ③表格自适应列宽：preproc table_pass 按「各列内容显示宽（CJK=2，上限90/下限8）重写分隔行破折号比例（总宽220>72 必触发 pandoc 相对列宽模式）」；手动覆盖入口=表格上方 [//]: # table-cols: 12,28,40,20（slash_break 屏蔽该行）；实测 16.0.3 锚点总表从机械等宽 25%×4 → 3.6/63.2/29.1/4.1%
+- fix_tex.py 新增：非代码区裸 \_ 标识符（mpas_atmphys_constants 类）后插断点
+- 样张 v2：教材 4 处溢出（≤11pt ≈4mm，SOILPARM 型多列窄表物理极限，可忽略或用覆盖注释微调）、文库 0 溢出；均 0 错误 0 缺字
+- 教训：\allowbreak 后必须跟 {}（否则吞后续字母变 undefined cs）；pandoc 把 verbatim 连字符转义 {-}、斜杠转义 {-} 之类转义形式需单独匹配
+
+## 印刷管线 v3（2026-10-12，二轮目检意见：竖图/表格/图caption）
+- 竖图限高：Gin 默认键加 height=0.55\textheight + keepaspectratio（宽 85% 与高 55% 双约束）
+- 表格 v3（吸收 tabularx X 列思想，longtable p 列实现）：每列 min=最长 token 一行宽（CJK 连续串一个 token；拉丁按 _ / - 可断点细分——这些位置已有 \allowbreak），剩余宽按（自然宽−min）比例分给长内容列；Σmin 超预算时等比压缩到 80% 可用再分；分母统一用 avail=linewidth−2(ncol−1)tabcolsep（此前误用 linewidth 致全部列宽缩水 4%）
+- 文库图 alt=纯文件名时清空 → 无 \caption 无 Figure 编号（垃圾 caption 根治）；\figurename/\tablename 本地化为 图/表（scheme=plain 不自带）
+- bug 教训：IMG_RE group(1)=![alt]( 含尾部 ](，[2:-1] 截 alt 会留 ]，必须 [2:-2]；空 alt 分支 head 必须 ![]('（漏 ( 会丢整个图片链接）
+- 样张 v3：教材溢出 10 处全部 ≤13pt、文库 0；0 错误 0 缺字
+
+## 印刷管线 v4（2026-10-12，三轮目检意见；表格方案自此定稿）
+- **表格方案定稿**：preproc table_pass v3（token 保底 + flex 分配 + avail 分母）+ [//]: # table-cols 手动覆盖 + fix_tex 断点注入，后续全量沿用不再改动
+- **mermaid 泄漏根治**：用户在 PDF 里看到 mermaid 源码——两个状态机 bug：①<details> 壳内的 `` `mermaid `` 行命中 FENCE_RE，fence 优先级高于 details 导致整壳泄漏；②HTML 注释内 mermaid 箭头 --> 被误判为注释终止符提前退出。修复：in_details 优先级提至最高（只认 </details>，内部一律丢弃）；in_comment 内新增 comment_fence 子状态（注释内 ` 围栏里无视 -->）。复查 master 残留仅图片路径中的 figs/mermaid 目录名（合法）
+- PNG 确认：doc/figs/mermaid 下 code_*_01.png 20 张全在（含 code_11），md 中 mermaid 仅存于 details 注释壳（有意保留的源码备份，PDF 不渲染）
+- 代码行距：formatcom=\linespread{0.72}\selectfont（footnotesize 下近字面高）
+- 下边距 2.4→1.9cm；样张也开 --toc --toc-depth=2（封面无页码→目录罗马→正文阿拉伯 1）
+- 样张 v4：教材 25 页 / 文库 39 页（泄漏框消失+行距压缩后从 56 页降下来），0 错误 0 缺字，文库 0 溢出、教材 ≤13pt
+
+## 印刷管线 v5 全量交付（2026-10-12，终版）
+- 全量三轮迭代修复：①slash_break 占位符嵌套还原 bug（MDLINK 吞 MATH 占位符→NUL 残留→"invalid character"×14）→ while 循环还原至收敛；②math 内裸希腊字符（cmmi 缺 γ）→ MATH_WRAP_RE 加 0370-03FF 包 \text{} 走 Times；③℃/° 在 Consolas（代码块内）→ \newunicodechar 映射 Segoe；④display 块多 \tag（一行双式）→ gather 环境每行一 tag；⑤\texttt 断点扩展 =+,;、+ hex 每 16 位；⑥正文 = + 后插断点（粗体长标识符链）；⑦Highlighting 内 Tok 参数插逗号断点（fvextra 组内不断行，Fortran 160+ 字符 StringTok）；⑧⅓ → \tfrac{1}{3}（Segoe 无此字形）
+- 终态 QA：book1《WRF 源码导论》363 页 15.5MB，0 错误 0 缺字，overfull 50 处 max 26.6pt（9mm，页边距内）；book2《WRF 源码精读》668 页 9.3MB，0 错误 0 缺字，overfull 3 处 max 19.9pt
+- 交付：doc\WRF源码导论_印刷版.pdf + doc\WRF源码精读_印刷版.pdf（封面/目录罗马/正文阿拉伯、A4 双面 openright、宋体五号+Times+Consolas+tango 彩框代码、表格 v3 自适应列宽、竖图限高 55% 版心）
+- 管线终态：workspace\print\{preproc.py, fix_tex.py, header.tex, template_print.tex, cover_book1/2.tex, build.ps1, scan_chars.py}；重构建命令 build.ps1 -Book book1|book2|sample1|sample2
+
+## 印刷管线 v6（2026-10-12，全角引号字形修复）
+- 问题：中文弯引号 U+2018–201D 被 xeCJK 归默认类→走 Times New Roman 西文比例引号（宽度高度明显不对）
+- 修复：header.tex 加 \xeCJKDeclareCharClass{CJK}{"2018 -> "201D}——引号归 CJK 类走宋体全角字形，断行规则同步按中文处理；微型测试确认正文与 verbatim 代码块两种场景均干净生效
+- 全量重建：book1 363 页 0 错误 0 缺字（overfull 51 处 max 同前）、book2 668 页 0 错误 0 缺字（3 处）；已复制覆盖 doc\ 两本印刷版
